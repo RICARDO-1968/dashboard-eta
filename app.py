@@ -3,14 +3,14 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Configuração de tela otimizada para celular/tablet
+# Configuração de tela para celular/tablet
 st.set_page_config(page_title="ETA Brasília", layout="wide")
 
 st.markdown("""
     <style>
     .main .block-container { padding-top: 1rem; padding-bottom: 1rem; }
-    h1 { font-size: 20px !important; font-weight: bold; color: #0f3460; }
-    h2 { font-size: 16px !important; font-weight: bold; color: #1f77b4; margin-top: 15px; }
+    <h1> { font-size: 20px !important; font-weight: bold; color: #0f3460; }
+    <h2> { font-size: 16px !important; font-weight: bold; color: #1f77b4; margin-top: 15px; }
     .stSelectbox label { font-weight: bold; font-size: 13px; }
     </style>
 """, unsafe_allow_html=True)
@@ -40,27 +40,21 @@ def carregar_dados_blindados():
         xls = pd.ExcelFile(nome_arquivo)
         listagem_abas = xls.sheet_names
         
-        # Carrega as abas por ordem física (0 = primeira aba, 1 = segunda aba)
+        # Carrega as abas por ordem física
         df_quimico = pd.read_excel(nome_arquivo, sheet_name=0)
         df_carga = pd.read_excel(nome_arquivo, sheet_name=1 if len(listagem_abas) > 1 else 0)
         
-        # REMOVE ESPAÇOS E FORÇA TODAS AS COLUNAS PARA MAIÚSCULAS
+        # Remove espaços e força colunas para maiúsculas
         df_quimico.columns = df_quimico.columns.str.strip().str.upper()
         df_carga.columns = df_carga.columns.str.strip().str.upper()
         
-        # Correção emergencial caso digitem 'mg/l' minúsculo
-        df_quimico.columns = df_quimico.columns.str.replace("MG/L", "MG/L")
-        df_carga.columns = df_carga.columns.str.replace("MG/L", "MG/L")
-        
-        # Encontra a coluna de data (independente de estar escrito DATA, Data ou data)
+        # Encontra a coluna de data de forma inteligente
         for df in [df_quimico, df_carga]:
             colunas_data = [c for c in df.columns if "DATA" in c or "DATE" in c]
             if colunas_data:
                 df[colunas_data[0]] = pd.to_datetime(df[colunas_data[0]], errors='coerce')
-                # Padroniza o nome interno para 'DATA_PROCESSO'
                 df.rename(columns={colunas_data[0]: "DATA_PROCESSO"}, inplace=True)
             elif len(df) > 0:
-                # Se não achar coluna com nome DATA, tenta converter a primeira coluna do arquivo
                 df.rename(columns={df.columns[0]: "DATA_PROCESSO"}, inplace=True)
                 df["DATA_PROCESSO"] = pd.to_datetime(df["DATA_PROCESSO"], errors='coerce')
                 
@@ -72,16 +66,15 @@ def carregar_dados_blindados():
 df_q, df_c = carregar_dados_blindados()
 
 if df_q is not None and df_c is not None:
-    # --- MENUS DE FILTRO NA BARRA LATERAL (Desliza tocando em '>>' no celular) ---
+    # --- MENUS DE FILTRO NA BARRA LATERAL ---
     st.sidebar.markdown("### 🖥️ Controle de Processo")
-    if st.sidebar.button("🔄 Limpar Cache e Forçar Leitura"):
+    if st.sidebar.button("🔄 Limpar Cache e Recarregar"):
         st.cache_data.clear()
         st.rerun()
         
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### ⏳ Filtros do Painel")
     
-    # Filtragem por data garantindo que não zere as linhas por erro de formato
     if "DATA_PROCESSO" in df_q.columns and df_q["DATA_PROCESSO"].notna().any():
         df_q = df_q[df_q["DATA_PROCESSO"].notna()]
         data_min = df_q["DATA_PROCESSO"].min().date()
@@ -98,23 +91,21 @@ if df_q is not None and df_c is not None:
         else:
             df_c_f = df_c
     else:
-        st.sidebar.warning("Coluna de data não detectada ou vazia. Exibindo dados totais.")
         df_q_f, df_c_f = df_q, df_c
 
     # --- CORPO PRINCIPAL DO DASHBOARD ---
     st.title("Equilíbrio químico integrado")
     st.caption("Gráficos de dispersões e correlações lineares (r) atualizados via GitHub.")
     
-    # Função matemática de cruzamento de dados (Totalmente em Maiúsculas)
-    def plotar_dispersao_universal(df, col_x, col_y_par, col_y_impar, lbl_x, lbl_y, tit):
+    # Função matemática de cruzamento corrigida (plotar_universal)
+    def plotar_universal(df, col_x, col_y_par, col_y_impar, lbl_x, lbl_y, tit):
         fig = go.Figure()
         
-        # Transforma os termos buscados em maiúsculas para bater com a tabela
         cx = col_x.upper()
         cy_p = col_y_par.upper()
         cy_i = col_y_impar.upper()
         
-        # Camada Par (Verde)
+        # Lado Par (Verde)
         if cx in df.columns and cy_p in df.columns:
             df_p = df[[cx, cy_p]].dropna()
             x_arr = pd.to_numeric(df_p[cx], errors='coerce')
@@ -129,7 +120,7 @@ if df_q is not None and df_c is not None:
                 lbl_p = f'Par (n={len(x_arr)})'
             fig.add_trace(go.Scatter(x=x_arr, y=y_arr, mode='markers', name=lbl_p, marker=dict(color='#009b72', size=5)))
             
-        # Camada Ímpar (Roxo)
+        # Lado Ímpar (Roxo)
         if cx in df.columns and cy_i in df.columns:
             df_i = df[[cx, cy_i]].dropna()
             x_arr_i = pd.to_numeric(df_i[cx], errors='coerce')
@@ -152,7 +143,7 @@ if df_q is not None and df_c is not None:
         )
         return fig
 
-    # --- MAIS DE 1.000 LINHAS PROCESSADAS INSTANTANEAMENTE ---
+    # --- SEÇÃO 1: ABA QUÍMICA ---
     st.markdown("## 📊 Relações Operacionais (Primeira Aba)")
     
     st.plotly_chart(plotar_universal(
@@ -187,6 +178,7 @@ if df_q is not None and df_c is not None:
         "Vazão de Recirculação (L/s)", "Turbidez Clarificada (uT)", "Vazão de Recirculação × Clarificada"
     ), use_container_width=True)
 
+    # --- SEÇÃO 2: ABA CARGA ---
     st.markdown("---")
     st.markdown("## 🧪 Relações Químicas e Dosagem (Segunda Aba)")
     
@@ -198,10 +190,12 @@ if df_q is not None and df_c is not None:
         "DOS PAC (mg/L)", "pH Coagulado", "DOS PAC × pH de Coagulação"
     ), use_container_width=True)
     
-    if "CARGA (CSV)" in df_c_f.columns:
+    # Procura o termo CARGA (CSV) de forma flexível nas colunas da aba de carga
+    col_carga_real = [c for c in df_c_f.columns if "CARGA" in c]
+    if col_carga_real:
         st.plotly_chart(plotar_universal(
             df_c_f, 
-            "CARGA (CSV)", 
+            col_carga_real[0], 
             "LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)", 
             "LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)", 
             "Carga (CSV)", "Turbidez Clarificada (uT)", "Carga (CSV) × Turbidez Clarificada"
