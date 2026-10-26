@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 
 # Configuração de tela para celular/tablet
 st.set_page_config(page_title="ETA Brasília", layout="wide")
@@ -12,7 +11,6 @@ st.markdown("""
     .main .block-container { padding-top: 1rem; padding-bottom: 1rem; }
     h1 { font-size: 20px !important; font-weight: bold; color: #0f3460; }
     h2 { font-size: 16px !important; font-weight: bold; color: #1f77b4; margin-top: 15px; }
-    h3 { font-size: 14px !important; }
     .stSelectbox label { font-weight: bold; font-size: 13px; }
     </style>
 """, unsafe_allow_html=True)
@@ -34,19 +32,33 @@ if not st.session_state["autenticado"]:
                 st.error("Senha incorreta.")
     st.stop()
 
-# 2. Leitura Robusta das duas abas do Excel
-@st.cache_data(ttl=10)
-def carregar_dados():
+# 2. Leitura por Posição Física das Abas (À prova de erros de acentuação/nomes)
+@st.cache_data(ttl=5)
+def carregar_dados_posicionais():
     nome_arquivo = "EQUILIBRIO QUIMICO.xlsx"
     try:
-        df_quimico = pd.read_excel(nome_arquivo, sheet_name="EQUILÍBRIO QUÍMICO")
-        df_carga = pd.read_excel(nome_arquivo, sheet_name="EQUILÍBRIO QUÍMICO COM CARGA")
+        xls = pd.ExcelFile(nome_arquivo)
+        listagem_abas = xls.sheet_names
         
-        # Limpeza básica de espaços extras nos nomes das colunas
+        # Pega a primeira aba física do arquivo Excel (Índice 0)
+        df_quimico = pd.read_excel(nome_arquivo, sheet_name=0)
+        
+        # Pega a segunda aba física do arquivo Excel (Índice 1). Se não houver, repete a primeira
+        if len(listagem_abas) > 1:
+            df_carga = pd.read_excel(nome_arquivo, sheet_name=1)
+        else:
+            df_carga = pd.read_excel(nome_arquivo, sheet_name=0)
+        
+        # Limpa espaços invisíveis nos nomes das colunas
         df_quimico.columns = df_quimico.columns.str.strip()
         df_carga.columns = df_carga.columns.str.strip()
         
-        # Converte coluna DATA para o formato de data do Python
+        # Ajuste ortográfico emergencial para colunas específicas citadas pelo usuário
+        for df in [df_quimico, df_carga]:
+            if "LADO ÍMPAR ÁGUA COAGULADA ALC. (mg/l)" in df.columns:
+                df.rename(columns={"LADO ÍMPAR ÁGUA COAGULADA ALC. (mg/l)": "LADO ÍMPAR ÁGUA COAGULADA ALC. (mg/L)"}, inplace=True)
+        
+        # Converte coluna DATA para formato correto se ela existir
         if "DATA" in df_quimico.columns:
             df_quimico["DATA"] = pd.to_datetime(df_quimico["DATA"])
         if "DATA" in df_carga.columns:
@@ -57,19 +69,19 @@ def carregar_dados():
         st.error(f"Erro ao ler as abas do Excel: {e}")
         return None, None
 
-df_q, df_c = carregar_dados()
+df_q, df_c = carregar_dados_posicionais()
 
 if df_q is not None and df_c is not None:
-    # --- MENUS DE FILTRO NA BARRA LATERAL (Acessível via botão '>>' no topo esquerdo do celular) ---
+    # --- MENUS DE FILTRO NA BARRA LATERAL (Botão '>>' no topo esquerdo do celular) ---
     st.sidebar.markdown("### 🖥️ Controle de Processo")
-    if st.sidebar.button("🔄 Atualizar Dados"):
+    if st.sidebar.button("🔄 Forçar Atualização"):
         st.cache_data.clear()
         st.rerun()
         
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### ⏳ Filtros do Painel")
     
-    # Filtro de Período por Data
+    # Filtro de Período por Data Real
     if "DATA" in df_q.columns and len(df_q) > 0:
         data_min = df_q["DATA"].min().date()
         data_max = df_q["DATA"].max().date()
@@ -81,16 +93,9 @@ if df_q is not None and df_c is not None:
     else:
         df_q_f, df_c_f = df_q, df_c
 
-    # Filtros por faixas textuais se existirem na sua planilha
-    if "FAIXA_TURB_BRUTA" in df_q_f.columns:
-        faixas_turb = ["Todas"] + list(df_q_f["FAIXA_TURB_BRUTA"].dropna().unique())
-        fx_turb_sel = st.sidebar.selectbox("Faixa de Turbidez Bruta", faixas_turb)
-        if fx_turb_sel != "Todas":
-            df_q_f = df_q_f[df_q_f["FAIXA_TURB_BRUTA"] == fx_turb_sel]
-
     # --- CORPO PRINCIPAL DO DASHBOARD ---
     st.title("Equilíbrio químico integrado")
-    st.caption("Visão combinada de captações, coagulação, flotação e clarificação baseada nas planilhas operacionais.")
+    st.caption("Visão de dispersões e correlações lineares (r) em tempo real.")
     
     # Função matemática de dispersão para os pares de interesse (Lado Par x Lado Ímpar)
     def plotar_dispersao_real(df, col_x, col_y_par, col_y_impar, lbl_x, lbl_y, tit):
@@ -99,31 +104,38 @@ if df_q is not None and df_c is not None:
         # Plotagem do Lado Par (Verde)
         if col_x in df.columns and col_y_par in df.columns:
             df_p = df[[col_x, col_y_par]].dropna()
-            df_p = df_p[np.isfinite(df_p[col_x]) & np.isfinite(df_p[col_y_par])]
-            if len(df_p) > 1:
-                r_p = np.corrcoef(df_p[col_x].astype(float), df_p[col_y_par].astype(float))[0, 1]
-                lbl_p = f'Par (n={len(df_p)} | r={r_p:.3f})'
+            x_arr = pd.to_numeric(df_p[col_x], errors='coerce')
+            y_arr = pd.to_numeric(df_p[col_y_par], errors='coerce')
+            validos = np.isfinite(x_arr) & np.isfinite(y_arr)
+            x_arr, y_arr = x_arr[validos], y_arr[validos]
+            
+            if len(x_arr) > 1:
+                r_p = np.corrcoef(x_arr, y_arr)[0, 1]
+                lbl_p = f'Par (n={len(x_arr)} | r={r_p:.3f})'
             else:
-                lbl_p = f'Par (n={len(df_p)})'
-            fig.add_trace(go.Scatter(x=df_p[col_x], y=df_p[col_y_par], mode='markers', name=lbl_p, marker=dict(color='#009b72', size=5)))
+                lbl_p = f'Par (n={len(x_arr)})'
+            fig.add_trace(go.Scatter(x=x_arr, y=y_arr, mode='markers', name=lbl_p, marker=dict(color='#009b72', size=5)))
             
         # Plotagem do Lado Ímpar (Roxo)
         if col_x in df.columns and col_y_impar in df.columns:
             df_i = df[[col_x, col_y_impar]].dropna()
-            df_i = df_i[np.isfinite(df_i[col_x]) & np.isfinite(df_i[col_y_impar])]
-            if len(df_i) > 1:
-                r_i = np.corrcoef(df_i[col_x].astype(float), df_i[col_y_impar].astype(float))[0, 1]
-                lbl_i = f'Ímpar (n={len(df_i)} | r={r_i:.3f})'
+            x_arr_i = pd.to_numeric(df_i[col_x], errors='coerce')
+            y_arr_i = pd.to_numeric(df_i[col_y_impar], errors='coerce')
+            validos_i = np.isfinite(x_arr_i) & np.isfinite(y_arr_i)
+            x_arr_i, y_arr_i = x_arr_i[validos_i], y_arr_i[validos_i]
+            
+            if len(x_arr_i) > 1:
+                r_i = np.corrcoef(x_arr_i, y_arr_i)[0, 1]
+                lbl_i = f'Ímpar (n={len(x_arr_i)} | r={r_i:.3f})'
             else:
-                lbl_i = f'Ímpar (n={len(df_i)})'
-            fig.add_trace(go.Scatter(x=df_i[col_x], y=df_i[col_y_impar], mode='markers', name=lbl_i, marker=dict(color='#6f42c1', size=5)))
+                lbl_i = f'Ímpar (n={len(x_arr_i)})'
+            fig.add_trace(go.Scatter(x=x_arr_i, y=y_arr_i, mode='markers', name=lbl_i, marker=dict(color='#6f42c1', size=5)))
             
         fig.update_layout(
-            title=dict(text=tit, font=dict(size=14)),
-            xaxis_title=lbl_x, 
-            yaxis_title=lbl_y, 
-            margin=dict(l=10, r=10, t=50, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=11))
+            title=dict(text=tit, font=dict(size=13)),
+            xaxis_title=lbl_x, yaxis_title=lbl_y,
+            margin=dict(l=10, r=10, t=45, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=10))
         )
         return fig
 
@@ -183,7 +195,7 @@ if df_q is not None and df_c is not None:
         "DOS PAC × pH de Coagulação"
     ), use_container_width=True)
     
-    # G6: Relação com a Carga Específica (Coluna exclusiva)
+    # G6: Relação com a Carga Específica
     if "CARGA (CSV)" in df_c_f.columns:
         st.plotly_chart(plotar_dispersao_real(
             df_c_f, 
