@@ -21,30 +21,30 @@ def load_data():
         # Lê a primeira aba sem assumir nenhuma linha como cabeçalho ainda
         df_raw = pd.read_excel(EXCEL_FILE, sheet_name=0, header=None)
         
-        # Encontra a primeira linha que não seja totalmente vazia para ser nosso cabeçalho
+        # Encontra a primeira linha que contém as palavras-chave do cabeçalho
         row_idx = 0
         for i, row in df_raw.iterrows():
-            if row.dropna().astype(str).str.strip().any():
-                # Se a linha contiver palavras típicas de um cabeçalho, achamos o ponto inicial
-                row_str = " ".join(row.dropna().astype(str).upper())
-                if "DATA" in row_str or "A/S" in row_str or "RELAÇÃO" in row_str or "ETA" in row_str:
-                    row_idx = i
-                    break
+            # Converte os valores da linha em uma lista de textos limpos em maiúsculo
+            valores_linha = row.dropna().astype(str).str.upper().tolist()
+            linha_texto_unido = " ".join(valores_linha)
+            
+            # Se encontrar termos clássicos de colunas, define como o cabeçalho
+            if "DATA" in linha_texto_unido or "A/S" in linha_texto_unido or "RELAÇÃO" in linha_texto_unido:
+                row_idx = i
+                break
         
-        # Recarrega o arquivo pulando as linhas vazias do topo
+        # Recarrega o arquivo pulando as linhas decorativas do topo
         df = pd.read_excel(EXCEL_FILE, sheet_name=0, skiprows=row_idx)
         
-        # Limpa os nomes das colunas de qualquer espaço invisível
+        # Limpa os nomes das colunas de espaços invisíveis e remove colunas totalmente vazias
         df.columns = df.columns.astype(str).str.strip()
-        
-        # Remove colunas e linhas completamente vazias que possam ter sobrado
         df = df.dropna(how='all', axis=0)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         
-        # Força letras maiúsculas nas colunas
+        # Força letras maiúsculas nas colunas encontradas
         df.columns = df.columns.str.upper()
         
-        # Ajusta a coluna A/S
+        # Ajusta e padroniza a coluna A/S
         rename_dict = {}
         for col in df.columns:
             if "A/S" in col or "RELAÇÃO" in col or "A / S" in col:
@@ -60,7 +60,7 @@ df = load_data()
 
 if df is not None and not df.empty:
     # 1. EXPANDER COM DADOS BRUTOS
-    with st.expander("👀 Visualizar Dados Brutos (Tabela do Excel)", expanded=False):
+    with st.expander("👀 Visualizar Dados Brutos (Tabela do Excel)", expanded=True):
         st.write(f"Planilha carregada com sucesso! Total de linhas válidas: {len(df)}")
         st.dataframe(df)
 
@@ -76,7 +76,7 @@ if df is not None and not df.empty:
             datas = sorted(df[col_data].unique())
             if len(datas) > 1:
                 data_sel = st.sidebar.select_slider("Selecione o período:", options=datas, value=(datas[0], datas[-1]))
-                df_filtrado = df[(df[col_data] >= data_sel) & (df[col_data] <= data_sel)]
+                df_filtrado = df[(df[col_data] >= data_sel[0]) & (df[col_data] <= data_sel[1])]
             else:
                 df_filtrado = df
         except:
