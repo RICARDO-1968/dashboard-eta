@@ -13,22 +13,38 @@ EXCEL_FILE = "EQUILIBRIO QUIMICO.xlsx"
 
 @st.cache_data
 def load_data():
-    # Verifica se o arquivo realmente existe no servidor do GitHub
     if not os.path.exists(EXCEL_FILE):
-        st.error(f"❌ O arquivo '{EXCEL_FILE}' não foi encontrado na raiz do GitHub. Verifique o nome e a extensão.")
+        st.error(f"❌ O arquivo '{EXCEL_FILE}' não foi encontrado na raiz do GitHub.")
         return None
         
     try:
-        # Força a leitura da primeira aba disponível, não importa o nome dela
-        df = pd.read_excel(EXCEL_FILE, sheet_name=0)
+        # Lê a primeira aba sem assumir nenhuma linha como cabeçalho ainda
+        df_raw = pd.read_excel(EXCEL_FILE, sheet_name=0, header=None)
         
-        # Limpa os nomes das colunas de qualquer espaço invisível ou quebra de linha
+        # Encontra a primeira linha que não seja totalmente vazia para ser nosso cabeçalho
+        row_idx = 0
+        for i, row in df_raw.iterrows():
+            if row.dropna().astype(str).str.strip().any():
+                # Se a linha contiver palavras típicas de um cabeçalho, achamos o ponto inicial
+                row_str = " ".join(row.dropna().astype(str).upper())
+                if "DATA" in row_str or "A/S" in row_str or "RELAÇÃO" in row_str or "ETA" in row_str:
+                    row_idx = i
+                    break
+        
+        # Recarrega o arquivo pulando as linhas vazias do topo
+        df = pd.read_excel(EXCEL_FILE, sheet_name=0, skiprows=row_idx)
+        
+        # Limpa os nomes das colunas de qualquer espaço invisível
         df.columns = df.columns.astype(str).str.strip()
         
-        # Força letras maiúsculas para evitar erros de digitação (ex: Data -> DATA)
+        # Remove colunas e linhas completamente vazias que possam ter sobrado
+        df = df.dropna(how='all', axis=0)
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        
+        # Força letras maiúsculas nas colunas
         df.columns = df.columns.str.upper()
         
-        # Mapeia e corrige especificamente a coluna A/S independente de como foi digitada
+        # Ajusta a coluna A/S
         rename_dict = {}
         for col in df.columns:
             if "A/S" in col or "RELAÇÃO" in col or "A / S" in col:
@@ -43,15 +59,14 @@ def load_data():
 df = load_data()
 
 if df is not None and not df.empty:
-    # 1. EXPANDER COM DADOS BRUTOS (Para checar se o Excel abriu)
-    with st.expander("👀 Visualizar Dados Brutos (Tabela do Excel)", expanded=True):
-        st.write(f"Planilha carregada com sucesso! Total de linhas: {len(df)}")
+    # 1. EXPANDER COM DADOS BRUTOS
+    with st.expander("👀 Visualizar Dados Brutos (Tabela do Excel)", expanded=False):
+        st.write(f"Planilha carregada com sucesso! Total de linhas válidas: {len(df)}")
         st.dataframe(df)
 
-    # 2. CONFIGURAÇÃO DOS FILTROS (Se houver coluna de data)
+    # 2. CONFIGURAÇÃO DOS FILTROS
     st.sidebar.header("Filtros de Visualização")
     
-    # Procura por colunas que possam ser a Data
     colunas_data = [c for c in df.columns if "DATA" in c or "DATE" in c]
     
     if colunas_data:
@@ -61,7 +76,7 @@ if df is not None and not df.empty:
             datas = sorted(df[col_data].unique())
             if len(datas) > 1:
                 data_sel = st.sidebar.select_slider("Selecione o período:", options=datas, value=(datas[0], datas[-1]))
-                df_filtrado = df[(df[col_data] >= data_sel[0]) & (df[col_data] <= data_sel[1])]
+                df_filtrado = df[(df[col_data] >= data_sel) & (df[col_data] <= data_sel)]
             else:
                 df_filtrado = df
         except:
@@ -69,31 +84,28 @@ if df is not None and not df.empty:
     else:
         df_filtrado = df
 
-    # 3. CONSTRUÇÃO DO GRÁFICO DINDÂMICO
+    # 3. CONSTRUÇÃO DO GRÁFICO DINÂMICO
     st.subheader("📈 Análise Gráfica de Parâmetros")
     
-    # Seleciona apenas colunas que possuem números para os eixos
+    # Seleciona apenas colunas com dados numéricos reais
     colunas_numericas = df_filtrado.select_dtypes(include=['float64', 'int64']).columns.tolist()
     
     if len(colunas_numericas) >= 2:
         eixo_x = st.selectbox("Escolha o parâmetro para o Eixo X:", colunas_numericas, index=0)
         eixo_y = st.selectbox("Escolha o parâmetro para o Eixo Y:", colunas_numericas, index=min(1, len(colunas_numericas)-1))
         
-        # Cria o gráfico com linhas e pontos marcados explicitamente
         fig = px.line(
             df_filtrado, 
             x=eixo_x, 
             y=eixo_y,
             title=f"Tendência: {eixo_y} em relação a {eixo_x}",
-            markers=True # Garante que os pontos fiquem visíveis no celular
+            markers=True
         )
         
-        fig.update_layout(hovermode="x unified", legend_orientation="h")
+        fig.update_layout(hovermode="x unified")
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("⚠️ O Excel foi lido, mas não encontramos colunas com dados numéricos suficientes para desenhar o gráfico.")
-        st.write("Colunas identificadas na sua planilha:", list(df.columns))
-
+        st.warning("⚠️ Encontramos a planilha, mas os dados numéricos internos ainda não foram mapeados como colunas.")
+        st.write("Colunas atualmente detectadas pelo sistema:", list(df.columns))
 else:
-    if df is dict or df is None:
-        st.warning("⚠️ Aguardando a correta leitura do arquivo Excel para estruturar os filtros e gráficos.")
+    st.info("⚠️ Aguardando a estruturação correta dos dados da planilha Excel.")
