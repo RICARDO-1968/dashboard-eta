@@ -29,31 +29,17 @@ else:
         }
         
         for nome_aba, status in mapeamento_abas.items():
-            # Verifica se a aba existe (tratando espaços e maiúsculas)
             aba_real = next((aba for aba in abas_disponiveis if aba.strip().upper() == nome_aba), None)
             
             if aba_real:
                 df_aba = pd.read_excel(EXCEL_FILE, sheet_name=aba_real)
                 
                 if not df_aba.empty:
-                    # 1. Padroniza nomes das colunas iniciais da aba
                     df_aba.columns = df_aba.columns.astype(str).str.strip().str.upper()
                     df_aba = df_aba.loc[:, ~df_aba.columns.str.contains('^UNNAMED')]
                     df_aba = df_aba.dropna(how='all', axis=0)
                     
-                    # 2. 🔄 RESOLUÇÃO DE COLUNAS DUPLICADAS DENTRO DA PRÓPRIA ABA (Antes de juntar)
-                    colunas_ajustadas = []
-                    contagem_colunas = {}
-                    for col in df_aba.columns:
-                        if col in contagem_colunas:
-                            contagem_colunas[col] += 1
-                            colunas_ajustadas.append(f"{col}_{contagem_colunas[col]}")
-                        else:
-                            contagem_colunas[col] = 1
-                            colunas_ajustadas.append(col)
-                    df_aba.columns = colunas_ajustadas
-                    
-                    # Carimba o status para podermos diferenciar no gráfico
+                    # Carimba o status para diferenciar no gráfico simultâneo
                     df_aba["STATUS_OPERACAO"] = status
                     dfs_para_juntar.append(df_aba)
         
@@ -61,10 +47,23 @@ else:
             st.error("⚠️ Nenhuma das duas abas específicas foi encontrada ou elas estão vazias.")
             df_consolidado = None
         else:
-            # 3. Agora a junção é segura porque nenhuma aba possui colunas duplicadas internamente
+            # Junta as duas tabelas na memória
             df_consolidado = pd.concat(dfs_para_juntar, ignore_index=True, sort=False)
 
         if df_consolidado is not None and not df_consolidado.empty:
+            
+            # 🔄 BLINDAGEM ABSOLUTA: Remove nomes repetidos após a junção das abas
+            colunas_finais = []
+            contagem_finais = {}
+            for col in df_consolidado.columns:
+                if col in contagem_finais:
+                    contagem_finais[col] += 1
+                    colunas_finais.append(f"{col}_{contagem_finais[col]}")
+                else:
+                    contagem_finais[col] = 1
+                    colunas_finais.append(col)
+            df_consolidado.columns = colunas_finais
+
             # TRATAMENTO E CONVERSÃO DE VÍRGULA PARA PONTO DECIMAL
             colunas_texto = ["DATA", "HORA", "TURNO", "OPERADOR", "OBS", "OBSERVAÇÃO", "OBSERVAÇÕES", "STATUS_OPERACAO"]
             
@@ -83,7 +82,7 @@ else:
                     rename_dict[col] = f"{nome_base}_{sufixo}" if sufixo.isdigit() else nome_base
             df_consolidado = df_consolidado.rename(columns=rename_dict)
 
-            # 1. VISUALIZADOR DA TABELA CONSOLIDADA COLETIVA
+            # 1. VISUALIZADOR DA TABELA CONSOLIDADA sem travar
             with st.expander("👀 Visualizar Banco de Dados Unificado (Memória)", expanded=True):
                 st.success(f"✅ Dados integrados automaticamente! Total de registros combinados: {len(df_consolidado)}")
                 st.dataframe(df_consolidado)
@@ -91,14 +90,14 @@ else:
             # 2. CONSTRUÇÃO DO GRÁFICO DINÂMICO DE COMPARAÇÃO SIMULTÂNEA
             st.subheader("📈 Gráfico de Análise e Tendência")
             
-            # Identifica as colunas numéricas disponíveis para plotagem
+            # Filtra as colunas numéricas que estão prontas para virar gráfico
             colunas_numericas = df_consolidado.select_dtypes(include=['float64', 'int64']).columns.tolist()
             
             if len(colunas_numericas) >= 2:
                 eixo_x = st.selectbox("Escolha o parâmetro do Eixo X (Horizontal):", colunas_numericas, index=0)
                 eixo_y = st.selectbox("Escolha o parâmetro do Eixo Y (Vertical):", colunas_numericas, index=min(1, len(colunas_numericas)-1))
                 
-                # O segredo do comparativo simultâneo está no parâmetro 'color'
+                # Gera o gráfico criando linhas separadas por cores baseado no STATUS (Com vs Sem Carga)
                 fig = px.line(
                     df_consolidado.sort_values(by=[eixo_x]), 
                     x=eixo_x, 
@@ -113,8 +112,8 @@ else:
                 fig.update_layout(hovermode="x unified", legend_title_text="Operação da ETA")
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("⚠️ Nenhuma coluna numérica pura foi encontrada após a consolidação das planilhas.")
+                st.warning("⚠️ Nenhuma coluna numérica pura foi encontrada após a consolidação.")
                 st.write("Colunas identificadas:", list(df_consolidado.columns))
                 
     except Exception as e:
-        st.error(f"❌ Erro crítico na consolidação das planilhas: {e}")
+        st.error(f"❌ Erro crítico na visualização do Dashboard: {e}")
