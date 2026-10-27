@@ -15,7 +15,7 @@ st.set_page_config(
 st.markdown("""
     <style>
     .stSubheader {
-        font-size: 0.9rem !important;
+        font-size: 0.5rem !important;
         font-weight: 600 !important;
         line-height: 1.2 !important;
         margin-bottom: 2px !important;
