@@ -32,9 +32,11 @@ else:
             aba_real = next((aba for aba in abas_disponiveis if aba.strip().upper() == nome_aba), None)
             
             if aba_real:
-                df_aba = pd.read_excel(EXCEL_FILE, sheet_name=aba_real)
+                # O 'header=0' garante a leitura da primeira linha, e resetamos o índice imediatamente
+                df_aba = pd.read_excel(EXCEL_FILE, sheet_name=aba_real, header=0)
                 
                 if not df_aba.empty:
+                    df_aba = df_aba.reset_index(drop=True)
                     df_aba.columns = df_aba.columns.astype(str).str.strip().str.upper()
                     df_aba = df_aba.loc[:, ~df_aba.columns.str.contains('^UNNAMED')]
                     df_aba = df_aba.dropna(how='all', axis=0)
@@ -47,12 +49,12 @@ else:
             st.error("⚠️ Nenhuma das duas abas específicas foi encontrada ou elas estão vazias.")
             df_consolidado = None
         else:
-            # Junta as duas tabelas na memória
+            # Junta as duas tabelas na memória redefinindo todos os índices estruturais
             df_consolidado = pd.concat(dfs_para_juntar, ignore_index=True, sort=False)
 
         if df_consolidado is not None and not df_consolidado.empty:
             
-            # 🔄 BLINDAGEM ABSOLUTA: Remove nomes repetidos após a junção das abas
+            # 🔄 BLINDAGEM MÁXIMA: Força a diferenciação de qualquer coluna duplicada na colagem final
             colunas_finais = []
             contagem_finais = {}
             for col in df_consolidado.columns:
@@ -82,7 +84,7 @@ else:
                     rename_dict[col] = f"{nome_base}_{sufixo}" if sufixo.isdigit() else nome_base
             df_consolidado = df_consolidado.rename(columns=rename_dict)
 
-            # 1. VISUALIZADOR DA TABELA CONSOLIDADA sem travar
+            # 1. VISUALIZADOR DA TABELA CONSOLIDADA COLETIVA
             with st.expander("👀 Visualizar Banco de Dados Unificado (Memória)", expanded=True):
                 st.success(f"✅ Dados integrados automaticamente! Total de registros combinados: {len(df_consolidado)}")
                 st.dataframe(df_consolidado)
@@ -90,7 +92,7 @@ else:
             # 2. CONSTRUÇÃO DO GRÁFICO DINÂMICO DE COMPARAÇÃO SIMULTÂNEA
             st.subheader("📈 Gráfico de Análise e Tendência")
             
-            # Filtra as colunas numéricas que estão prontas para virar gráfico
+            # Filtra as colunas numéricas prontas para virar gráfico
             colunas_numericas = df_consolidado.select_dtypes(include=['float64', 'int64']).columns.tolist()
             
             if len(colunas_numericas) >= 2:
