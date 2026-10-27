@@ -36,12 +36,12 @@ else:
                 df_aba = pd.read_excel(EXCEL_FILE, sheet_name=aba_real)
                 
                 if not df_aba.empty:
-                    # Padroniza nomes das colunas
+                    # 1. Padroniza nomes das colunas iniciais da aba
                     df_aba.columns = df_aba.columns.astype(str).str.strip().str.upper()
                     df_aba = df_aba.loc[:, ~df_aba.columns.str.contains('^UNNAMED')]
                     df_aba = df_aba.dropna(how='all', axis=0)
                     
-                    # 🔄 RESOLUÇÃO DE COLUNAS DUPLICADAS NA ABA
+                    # 2. 🔄 RESOLUÇÃO DE COLUNAS DUPLICADAS DENTRO DA PRÓPRIA ABA (Antes de juntar)
                     colunas_ajustadas = []
                     contagem_colunas = {}
                     for col in df_aba.columns:
@@ -61,7 +61,7 @@ else:
             st.error("⚠️ Nenhuma das duas abas específicas foi encontrada ou elas estão vazias.")
             df_consolidado = None
         else:
-            # Junta as duas tabelas em uma única estrutura na memória
+            # 3. Agora a junção é segura porque nenhuma aba possui colunas duplicadas internamente
             df_consolidado = pd.concat(dfs_para_juntar, ignore_index=True, sort=False)
 
         if df_consolidado is not None and not df_consolidado.empty:
@@ -74,7 +74,7 @@ else:
                     df_consolidado[col] = df_consolidado[col].str.replace(',', '.', regex=False)
                     df_consolidado[col] = pd.to_numeric(df_consolidado[col], errors='coerce')
             
-            # Padroniza a grafia da coluna A/S
+            # Padroniza a grafia da coluna Ar/Sólido (A/S)
             rename_dict = {}
             for col in df_consolidado.columns:
                 if "A/S" in col or "RELAÇÃO" in col or "A / S" in col:
@@ -84,33 +84,29 @@ else:
             df_consolidado = df_consolidado.rename(columns=rename_dict)
 
             # 1. VISUALIZADOR DA TABELA CONSOLIDADA COLETIVA
-            with st.expander("👀 Visualizar Banco de Dados Unificado (Memória)", expanded=False):
+            with st.expander("👀 Visualizar Banco de Dados Unificado (Memória)", expanded=True):
                 st.success(f"✅ Dados integrados automaticamente! Total de registros combinados: {len(df_consolidado)}")
                 st.dataframe(df_consolidado)
 
             # 2. CONSTRUÇÃO DO GRÁFICO DINÂMICO DE COMPARAÇÃO SIMULTÂNEA
-            st.subheader("📈 Gráfico de Comparação Temporal e Tendências")
+            st.subheader("📈 Gráfico de Análise e Tendência")
             
-            # Identifica as colunas numéricas disponíveis
+            # Identifica as colunas numéricas disponíveis para plotagem
             colunas_numericas = df_consolidado.select_dtypes(include=['float64', 'int64']).columns.tolist()
             
             if len(colunas_numericas) >= 2:
-                # Se houver coluna de DATA, usamos preferencialmente no Eixo X
-                colunas_data = [c for c in df_consolidado.columns if "DATA" in c]
-                index_x = colunas_numericas.index(colunas_data[0]) if colunas_data and colunas_data[0] in colunas_numericas else 0
-                
-                eixo_x = st.selectbox("Escolha o parâmetro do Eixo X (Horizontal):", colunas_numericas, index=index_x)
+                eixo_x = st.selectbox("Escolha o parâmetro do Eixo X (Horizontal):", colunas_numericas, index=0)
                 eixo_y = st.selectbox("Escolha o parâmetro do Eixo Y (Vertical):", colunas_numericas, index=min(1, len(colunas_numericas)-1))
                 
-                # O segredo está no argumento 'color', que vai separar os dados em linhas diferentes no mesmo gráfico
+                # O segredo do comparativo simultâneo está no parâmetro 'color'
                 fig = px.line(
                     df_consolidado.sort_values(by=[eixo_x]), 
                     x=eixo_x, 
                     y=eixo_y,
                     color="STATUS_OPERACAO",
-                    title=f"Comparativo: {eixo_y} vs {eixo_x}",
+                    title=f"Variação de {eixo_y} em relação a {eixo_x}",
                     markers=True,
-                    color_discrete_map={"SEM CARGA": "#1f77b4", "COM CARGA": "#d62728"} # Azul para sem carga, Vermelho para com carga
+                    color_discrete_map={"SEM CARGA": "#1f77b4", "COM CARGA": "#d62728"} # Azul vs Vermelho
                 )
                 
                 fig.update_traces(mode='markers+lines')
