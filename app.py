@@ -372,15 +372,6 @@ try:
         plotar_dispersao_par_impar("PAC × turbidez papel-filtro", col_pac, col_papel_par, col_papel_imp, "Papel Filtro", "PAC (mg/L)", "Turbidez papel-filtro (uT)")
     # =========================================================================
     # SEÇÃO 05. A/S, FLOTAÇÃO E RECIRCULAÇÃO
-    # =========================================================================
-    st.markdown("---")
-    st.subheader("05. A/S, flotação e recirculação")
-    st.caption("Análise de correlações da microbolha de ar dissolvido, pressões e taxas de saturação.")
-
-    col_vazao_rec_par = next((c for c in df_raw.columns if "RECIR" in c.upper() and "PAR" in c.upper()), None)
-    col_vazao_rec_imp = next((c for c in df_raw.columns if "RECIR" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
-    col_sst_coag = next((c for c in df_raw.columns if "SST" in c.upper() or "COAGULADO" in c.upper()), None)
-    col_ar_disp = next((c for c in df_raw.columns if "AR" in c.upper() and ("DISPONIVEL" in c.upper() or "DISPONÍVEL" in c.upper())), None)
 
     plotar_dispersao_par_impar("A/S × turbidez água bruta", col_as_par, col_bruta, col_bruta, "Água Bruta", "A/S (mg/mg)", "Turbidez bruta (uT)")
     plotar_dispersao_par_impar("A/S × turbidez clarificada do mesmo lado", col_as_par, col_par, col_impar, "Clarificada", "A/S (mg/mg)", "Turbidez clarificada (uT)")
