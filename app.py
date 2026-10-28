@@ -150,6 +150,19 @@ try:
     
     col_pac = next((c for c in df_raw.columns if "PAC" in c.upper() and "FAIXA" not in c.upper()), None)
     col_carga = next((c for c in df_raw.columns if "CARGA" in c.upper() or "CSV" in c.upper()), None)
+        col_pac = next((c for c in df_raw.columns if "PAC" in c.upper() and "FAIXA" not in c.upper()), None)
+    col_carga = next((c for c in df_raw.columns if "CARGA" in c.upper() or "CSV" in c.upper()), None)
+
+    # CORREÇÃO AQUI: Trazendo o mapeamento de flotação e recirculação para a raiz global
+    col_as_par = next((c for c in df_raw.columns if "A/S" in c.upper() and "PAR" in c.upper()), None)
+    col_as_impar = next((c for c in df_raw.columns if "A/S" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
+    col_pressao_par = next((c for c in df_raw.columns if ("PRESSAO" in c.upper() or "PRESSÃO" in c.upper()) and "PAR" in c.upper()), None)
+    col_pressao_impar = next((c for c in df_raw.columns if ("PRESSAO" in c.upper() or "PRESSÃO" in c.upper()) and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
+    col_vazao_rec_par = next((c for c in df_raw.columns if "RECIR" in c.upper() and "PAR" in c.upper()), None)
+    col_vazao_rec_imp = next((c for c in df_raw.columns if "RECIR" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
+    col_sst_coag = next((c for c in df_raw.columns if "SST" in c.upper() or "COAGULADO" in c.upper()), None)
+    col_ar_disp = next((c for c in df_raw.columns if "AR" in c.upper() and ("DISPONIVEL" in c.upper() or "DISPONÍVEL" in c.upper())), None)
+
     # =========================================================================
     # 5. CARDS DE INDICADORES OPERACIONAIS E CABEÇALHO DO DASHBOARD
     # =========================================================================
