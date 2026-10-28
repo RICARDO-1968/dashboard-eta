@@ -280,7 +280,7 @@ try:
             color="Lado", color_discrete_map={"Par": "#FF8C00", "Ímpar": "#2E7D32"}
         )
         fig_rem.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=250, showlegend=False, xaxis_title=None, yaxis_title="Remoção (%)")
-    st.plotly_chart(figrem, use_container_width=True)
+    st.plotly_chart(fig_rem, use_container_width=True)
     # =========================================================================
     # SEÇÃO 04. RELAÇÕES DE CARGA, PAC E QUALIDADE
     # =========================================================================
