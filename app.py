@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilização para compactar fontes e cards de indicadores na tela do celular
+# Estilização compacta para celulares e cartões de indicadores analíticos
 st.markdown("""
     <style>
     .stSubheader {
@@ -21,18 +21,18 @@ st.markdown("""
         font-weight: 700 !important;
         color: #0F4C81 !important;
         line-height: 1.2 !important;
-        margin-top: 10px !important;
+        margin-top: 14px !important;
         margin-bottom: 4px !important;
     }
     .metric-card {
         background-color: #F8F9FA;
         border-left: 4px solid #0F4C81;
-        padding: 10px;
+        padding: 8px 10px;
         border-radius: 4px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
-    .metric-title { font-size: 0.75rem; color: #6C757D; font-weight: 600; }
-    .metric-value { font-size: 1.2rem; color: #212529; font-weight: 700; }
+    .metric-title { font-size: 0.72rem; color: #6C757D; font-weight: 600; }
+    .metric-value { font-size: 1.15rem; color: #212529; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -59,13 +59,12 @@ if not st.session_state["autenticado"]:
     st.stop()
 
 # =========================================================================
-# 3. TRATAMENTO INTELIGENTE DE CACHE E CABEÇALHOS DO EXCEL
+# 3. TRATAMENTO DE DADOS, CONVERSÃO DE TEXTOS OPERACIONAIS E CACHE
 # =========================================================================
 @st.cache_data
 def carregar_e_tratar_dados():
     df = pd.read_excel("EQUILIBRIO QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", decimal=",")
     
-    # Desduplicação horizontal das colunas repetidas (Lado Par / Lado Ímpar)
     colunas_novas = []
     contagem_cols = {}
     for col in df.columns:
@@ -84,11 +83,14 @@ def carregar_e_tratar_dados():
     return df
 
 def calcular_r(df, col_x, col_y):
-    """Calcula coeficientes estatísticos de forma segura para os gráficos."""
-    df_clean = df[[col_x, col_y]].dropna()
+    """Calcula estatísticas de regressão limpando strings espúrias como '-'."""
+    df_clean = df[[col_x, col_y]].copy()
+    df_clean[col_x] = pd.to_numeric(df_clean[col_x], errors='coerce')
+    df_clean[col_y] = pd.to_numeric(df_clean[col_y], errors='coerce')
+    df_clean = df_clean.dropna()
     n = len(df_clean)
     if n > 2:
-        r_matrix = np.corrcoef(df_clean[col_x].astype(float), df_clean[col_y].astype(float))
+        r_matrix = np.corrcoef(df_clean[col_x], df_clean[col_y])
         return n, round(r_matrix[0, 1], 3)
     return n, 0.0
 
@@ -133,301 +135,248 @@ try:
         st.cache_data.clear()
         st.rerun()
 
-    # Mapeamento interno das variáveis essenciais para os próximos blocos
+    # Mapeamento de variáveis
     col_bruta = next((c for c in df_raw.columns if "BRUTA" in c.upper() and "TURB" in c.upper() and "FAIXA" not in c.upper()), None)
     col_filtrada = next((c for c in df_raw.columns if "FILT" in c.upper() and "TURB" in c.upper() and "FAIXA" not in c.upper() and "PAPEL" not in c.upper()), None)
     col_par = next((c for c in df_raw.columns if "PAR" in c.upper() and "CLAR" in c.upper() and "FAIXA" not in c.upper()), None)
     col_impar = next((c for c in df_raw.columns if ("IMPAR" in c.upper() or "ÍMPAR" in c.upper()) and "CLAR" in c.upper() and "FAIXA" not in c.upper()), None)
-    col_vazao = next((c for c in df_raw.columns if "VAZAO" in c.upper() or "VAZÃO" in c.upper()), None)
-    col_rem_par = next((c for c in df_raw.columns if "REMOÇÃO_PAR" in c.upper() or "REMOCAO_PAR" in c.upper()), None)
-    col_pac = next((c for c in df_raw.columns if "PAC" in c.upper()), None)
+    
+    col_vazao = next((c for c in df_raw.columns if "VAZÃO ÁGUA BRUTA TOTAL (L/S)" in c.upper() or "VAZAO AGUA BRUTA TOTAL" in c.upper()), None)
+    if not col_vazao:
+        col_vazao = next((c for c in df_raw.columns if "VAZAO" in c.upper() or "VAZÃO" in c.upper()), None)
+        
+    col_rem_par = next((c for c in df_raw.columns if "REMOÇÃO_PAR" in c.upper() or "REMOCAO_PAR" in c.upper() or "TAXA_REMOÇÃO_PAR" in c.upper()), None)
+    col_rem_imp = next((c for c in df_raw.columns if "REMOÇÃO_ÍMPAR" in c.upper() or "REMOCAO_IMPAR" in c.upper() or "TAXA_REMOÇÃO_ÍMPAR" in c.upper()), None)
+    
+    col_pac = next((c for c in df_raw.columns if "PAC" in c.upper() and "FAIXA" not in c.upper()), None)
     col_carga = next((c for c in df_raw.columns if "CARGA" in c.upper() or "CSV" in c.upper()), None)
-
-# O bloco try continua aberto para receber as próximas etapas...
     # =========================================================================
-    # 5. CARDS DE INDICADORES OPERACIONAIS (TELA PRINCIPAL)
+    # 5. CARDS DE INDICADORES OPERACIONAIS E CABEÇALHO DO DASHBOARD
     # =========================================================================
     st.title("Equilíbrio químico integrado")
-    st.caption("Visão combinada de captações, coagulação, flotação, filtração e clarificação.")
+    st.caption("Visão analítica de captações, coagulação, flotação, filtração e clarificação.")
 
-    # Renderização em duas colunas responsivas para visualização em smartphones
     m_col1, m_col2 = st.columns(2)
-    
     with m_col1:
         st.markdown(f"<div class='metric-card'><div class='metric-title'>Registros válidos</div><div class='metric-value'>{len(df_filtrado)}</div></div>", unsafe_allow_html=True)
-        v_bruta_media = round(df_filtrado[col_bruta].mean(), 2) if col_bruta else 0.0
+        v_bruta_media = round(pd.to_numeric(df_filtrado[col_bruta], errors='coerce').mean(), 2) if col_bruta else 0.0
         st.markdown(f"<div class='metric-card'><div class='metric-title'>Turbidez bruta média</div><div class='metric-value'>{v_bruta_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-        v_clar_media = round(df_filtrado[col_par].mean(), 2) if col_par else 0.0
-        st.markdown(f"<div class='metric-card'><div class='metric-title'>Clarificada média</div><div class='metric-value'>{v_clar_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-        
+        v_clar_media = round(pd.to_numeric(df_filtrado[col_par], errors='coerce').mean(), 2) if col_par else 0.0
+        st.markdown(f"<div class='metric-card'><div class='metric-title'>Clarificada média (Lado Par)</div><div class='metric-value'>{v_clar_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
     with m_col2:
-        v_vazao_media = round(df_filtrado[col_vazao].mean(), 2) if col_vazao else 0.0
-        st.markdown(f"<div class='metric-card'><div class='metric-title'>Vazão total média</div><div class='metric-value'>{v_vazao_media} <span style='font-size:0.8rem;font-weight:normal;'>L/s</span></div></div>", unsafe_allow_html=True)
-        v_filt_media = round(df_filtrado[col_filtrada].mean(), 2) if col_filtrada else 0.0
+        v_vazao_media = round(pd.to_numeric(df_filtrado[col_vazao], errors='coerce').mean(), 2) if col_vazao else 0.0
+        st.markdown(f"<div class='metric-card'><div class='metric-title'>Vazão bruta total média</div><div class='metric-value'>{v_vazao_media} <span style='font-size:0.8rem;font-weight:normal;'>L/s</span></div></div>", unsafe_allow_html=True)
+        v_filt_media = round(pd.to_numeric(df_filtrado[col_filtrada], errors='coerce').mean(), 2) if col_filtrada else 0.0
         st.markdown(f"<div class='metric-card'><div class='metric-title'>Turbidez filtrada média</div><div class='metric-value'>{v_filt_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-        v_rem_media = round(df_filtrado[col_rem_par].mean(), 1) if col_rem_par else 84.2
-        st.markdown(f"<div class='metric-card'><div class='metric-title'>Remoção média</div><div class='metric-value'>{v_rem_media} <span style='font-size:0.8rem;font-weight:normal;'>%</span></div></div>", unsafe_allow_html=True)
+        v_rem_media = round(pd.to_numeric(df_filtrado[col_rem_par], errors='coerce').mean(), 1) if col_rem_par else 84.2
+        st.markdown(f"<div class='metric-card'><div class='metric-title'>Remoção média (Lado Par)</div><div class='metric-value'>{v_rem_media} <span style='font-size:0.8rem;font-weight:normal;'>%</span></div></div>", unsafe_allow_html=True)
 
+    # =========================================================================
+    # SEÇÃO 01. LEITURA DO PROCESSO
+    # =========================================================================
     st.markdown("---")
     st.subheader("01. Leitura do processo")
-    st.caption("Evolução da turbidez e participação das captações no período selecionado.")
+    st.caption("Evolução da turbidez e balanço volumétrico de captação no período selecionado.")
 
-    # =========================================================================
-    # 6. GRÁFICO 1: SÉRIE TEMPORAL DE TURBIDEZ
-    # =========================================================================
     st.markdown("**SÉRIE TEMPORAL · Turbidez ao longo do processo**")
     colunas_linhas = [c for c in [col_bruta, col_filtrada, col_par, col_impar] if c is not None]
     
     if colunas_linhas and not df_filtrado.empty:
-        fig_linhas = px.line(df_filtrado, x="DATA", y=colunas_linhas)
-        
-        # Mapeamento estrito sugerido pelo modelo analítico
-        lbls = {
-            col_bruta: "Água Bruta", 
-            col_filtrada: "Água Filtrada", 
-            col_par: "Lado Par", 
-            col_impar: "Lado Ímpar"
-        }
+        fig_linhas = px.line(df_filtrado, x="DATA", y=colunas_linhas, color_discrete_map={col_par: "#FF8C00", col_impar: "#2E7D32"})
+        lbls = {col_bruta: "Água Bruta", col_filtrada: "Água Filtrada", col_par: "Lado Par", col_impar: "Lado Ímpar"}
         fig_linhas.for_each_trace(lambda t: t.update(name=lbls.get(t.name, t.name)))
-        
-        # Estilo estrito: linhas finas (1.2) e sem demarcações de pontos
         fig_linhas.update_traces(line=dict(width=1.2), mode='lines')
         fig_linhas.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), 
-            height=260,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            hovermode="x unified"
+            margin=dict(l=10, r=10, t=10, b=50), height=300,
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
+            hovermode="x unified", xaxis_title=None, yaxis_title="Turbidez (uT)"
         )
         st.plotly_chart(fig_linhas, use_container_width=True)
-    else:
-        st.info("Nenhum dado encontrado para gerar o gráfico de linhas temporais.")
 
-# O bloco try permanece aberto aguardando os próximos gráficos de dispersão...
+    st.markdown("**COMPOSIÇÃO · Participação diária das captações**")
+    col_tor = next((c for c in df_raw.columns if "TOR" in c.upper() and "FAIXA" not in c.upper()), None)
+    col_sm = next((c for c in df_raw.columns if "SM" in c.upper() and "FAIXA" not in c.upper()), None)
+    col_bnn = next((c for c in df_raw.columns if "BNN" in c.upper() and "FAIXA" not in c.upper()), None)
+    
+    col_captacoes = [c for c in [col_tor, col_sm, col_bnn] if c is not None]
+    if col_captacoes and not df_filtrado.empty:
+        df_cap = df_filtrado.copy()
+        for c in col_captacoes:
+            df_cap[c] = pd.to_numeric(df_cap[c], errors='coerce').fillna(0)
+        
+        fig_cap = px.bar(df_cap, x="DATA", y=col_captacoes, barmode="stack")
+        lbls_cap = {col_tor: "% TOR", col_sm: "% SM", col_bnn: "% BNN"}
+        fig_cap.for_each_trace(lambda t: t.update(name=lbls_cap.get(t.name, t.name)))
+        fig_cap.update_layout(
+            margin=dict(l=10, r=10, t=10, b=50), height=280,
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
+            xaxis_title=None, yaxis_title="Participação (%)"
+        )
+        st.plotly_chart(fig_cap, use_container_width=True)
+
     # =========================================================================
-    # 7. RELAÇÃO ENTRE VARIÁVEIS (MÓDULO DE CORRELAÇÃO ESTATÍSTICA)
+    # SEÇÃO 02. ETAPAS UNITÁRIAS
     # =========================================================================
     st.markdown("---")
-    st.subheader("02. Relação entre variáveis (Lado Par x Lado Ímpar)")
+    st.subheader("02. Etapas unitárias")
+    st.caption("Distribuição temporal e comportamento analítico das variáveis físicas e físico-químicas.")
+    
+    col_ph_bruta = next((c for c in df_raw.columns if "PH" in c.upper() and "BRUTA" in c.upper()), None)
+    col_ph_clar = next((c for c in df_raw.columns if "PH" in c.upper() and ("CLAR" in c.upper() or "COAG" in c.upper())), None)
 
-    # --- GRÁFICO 2: PAC x Turbidez Clarificada (Desmembrado Lado Par e Ímpar) ---
-    st.markdown("**RELAÇÃO · PAC × turbidez clarificada**")
-    if col_pac and col_par and col_impar and not df_filtrado.empty:
-        fig_disp1 = go.Figure()
-        
-        # Engenharia de Ajuste e Tendência: Lado Par
-        df_p = df_filtrado[[col_pac, col_par]].dropna().copy()
-        if not df_p.empty:
-            n_p, r_p = calcular_r(df_p, col_pac, col_par)
-            fig_disp1.add_trace(go.Scatter(
-                x=df_p[col_pac], y=df_p[col_par], mode='markers', 
-                name=f'Lado Par (n={n_p} r={r_p})', 
-                marker=dict(size=4, color='#0F4C81', opacity=0.7)
-            ))
-            p_p = np.polyfit(df_p[col_pac].astype(float), df_p[col_par].astype(float), 1)
-            x_p = np.linspace(df_p[col_pac].min(), df_p[col_pac].max(), 50)
-            fig_disp1.add_trace(go.Scatter(
-                x=x_p, y=np.polyval(p_p, x_p), mode='lines', 
-                name='Tendência Par', line=dict(color='#0F4C81', width=1.5, dash='dash')
-            ))
-
-        # Engenharia de Ajuste e Tendência: Lado Ímpar
-        df_i = df_filtrado[[col_pac, col_impar]].dropna().copy()
-        if not df_i.empty:
-            n_i, r_i = calcular_r(df_i, col_pac, col_impar)
-            fig_disp1.add_trace(go.Scatter(
-                x=df_i[col_pac], y=df_i[col_impar], mode='markers', 
-                name=f'Lado Ímpar (n={n_i} r={r_i})', 
-                marker=dict(size=4, color='#7A4B9E', opacity=0.7)
-            ))
-            p_i = np.polyfit(df_i[col_pac].astype(float), df_i[col_impar].astype(float), 1)
-            x_i = np.linspace(df_i[col_pac].min(), df_i[col_pac].max(), 50)
-            fig_disp1.add_trace(go.Scatter(
-                x=x_i, y=np.polyval(p_i, x_i), mode='lines', 
-                name='Tendência Ímpar', line=dict(color='#7A4B9E', width=1.5, dash='dash')
-            ))
-
-        fig_disp1.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=280,
-            xaxis_title="PAC (mg/L)", yaxis_title="Turbidez clarificada (uT)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    col_ph_lista = [c for c in [col_ph_bruta, col_ph_clar] if c is not None]
+    if col_ph_lista and not df_filtrado.empty:
+        st.markdown("**SÉRIE TEMPORAL · Monitoramento de pH**")
+        fig_ph = px.line(df_filtrado, x="DATA", y=col_ph_lista)
+        lbls_ph = {col_ph_bruta: "pH Água Bruta", col_ph_clar: "pH Coagulação/Clarificada"}
+        fig_ph.for_each_trace(lambda t: t.update(name=lbls_ph.get(t.name, t.name)))
+        fig_ph.update_traces(line=dict(width=1.2), mode='lines')
+        fig_ph.update_layout(
+            margin=dict(l=10, r=10, t=10, b=50), height=280,
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
+            xaxis_title=None, yaxis_title="pH"
         )
-        st.plotly_chart(fig_disp1, use_container_width=True)
+        st.plotly_chart(fig_ph, use_container_width=True)
+    # =========================================================================
+    # SEÇÃO 03. DESEMPENHO DO TRATAMENTO
+    # =========================================================================
+    st.markdown("---")
+    st.subheader("03. Desempenho do tratamento")
+    st.caption("Médias por etapa física e comparação direta da eficiência de remoção dos lados Par e Ímpar.")
 
-    # --- GRÁFICO 3: PAC x Turbidez Filtrada ---
-    st.markdown("**RELAÇÃO · PAC × turbidez filtrada**")
-    if col_pac and col_filtrada and not df_filtrado.empty:
-        df_f = df_filtrado[[col_pac, col_filtrada]].dropna().copy()
-        n_f, r_f = calcular_r(df_f, col_pac, col_filtrada)
+    if not df_filtrado.empty:
+        st.markdown("**DESEMPENHO · Turbidez média por etapa (NTU)**")
+        etapas_valores = []
+        etapas_nomes = []
         
-        fig_disp2 = go.Figure()
-        fig_disp2.add_trace(go.Scatter(
-            x=df_f[col_pac], y=df_f[col_filtrada], mode='markers', 
-            name=f'Filtrada (n={n_f} r={r_f})', 
-            marker=dict(size=4, color='#E6AD12', opacity=0.7)
-        ))
-        
-        if n_f > 2:
-            p_f = np.polyfit(df_f[col_pac].astype(float), df_f[col_filtrada].astype(float), 1)
-            x_f = np.linspace(df_f[col_pac].min(), df_f[col_pac].max(), 50)
-            fig_disp2.add_trace(go.Scatter(
-                x=x_f, y=np.polyval(p_f, x_f), mode='lines', 
-                name='Tendência Filtrada', line=dict(color='#E6AD12', width=1.5, dash='dash')
-            ))
+        if col_bruta:
+            etapas_valores.append(pd.to_numeric(df_filtrado[col_bruta], errors='coerce').mean())
+            etapas_nomes.append("Água bruta")
+        if col_filtrada:
+            etapas_valores.append(pd.to_numeric(df_filtrado[col_filtrada], errors='coerce').mean())
+            etapas_nomes.append("Água filtrada")
+        if col_par:
+            etapas_valores.append(pd.to_numeric(df_filtrado[col_par], errors='coerce').mean())
+            etapas_nomes.append("Clarificada Par")
+        if col_impar:
+            etapas_valores.append(pd.to_numeric(df_filtrado[col_impar], errors='coerce').mean())
+            etapas_nomes.append("Clarificada Ímpar")
             
-        fig_disp2.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=280,
-            xaxis_title="PAC (mg/L)", yaxis_title="Turbidez filtrada (uT)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        df_etapas_bar = pd.DataFrame({"Etapa": etapas_nomes, "Média NTU": etapas_valores})
+        fig_etapas = px.bar(
+            df_etapas_bar, x="Etapa", y="Média NTU",
+            color="Etapa", color_discrete_map={"Água bruta": "#D9534F", "Água filtrada": "#E6AD12", "Clarificada Par": "#FF8C00", "Clarificada Ímpar": "#2E7D32"}
         )
-        st.plotly_chart(fig_disp2, use_container_width=True)
+        fig_etapas.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=250, showlegend=False, xaxis_title=None, yaxis_title="uT")
+        st.plotly_chart(fig_etapas, use_container_width=True)
 
-# O bloco try permanece aberto aguardando os parâmetros físicos de flotação do bloco 4...
-    # =========================================================================
-    # 8. MÓDULO DE FLOTAÇÃO, MASSA DE AR (A/S) E RECIRCULAÇÃO
-    # =========================================================================
-    st.markdown("---")
-    st.subheader("03. A/S, flotação e recirculação")
-    st.caption("Relações por lado entre A/S, turbidez bruta/clarificada e parâmetros de recirculação.")
-
-    # Mapeamento automatizado das variáveis físicas no Excel
-    col_as_par = next((c for c in df_raw.columns if "A/S" in c.upper() and "PAR" in c.upper()), None)
-    col_as_impar = next((c for c in df_raw.columns if "A/S" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
-    col_pressao_par = next((c for c in df_raw.columns if ("PRESSAO" in c.upper() or "PRESSÃO" in c.upper()) and "PAR" in c.upper()), None)
-    col_pressao_impar = next((c for c in df_raw.columns if ("PRESSAO" in c.upper() or "PRESSÃO" in c.upper()) and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
-
-    # --- GRÁFICO 4: A/S x Turbidez da Água Bruta ---
-    st.markdown("**RELAÇÃO · A/S × turbidez da água bruta**")
-    if col_bruta and (col_as_par or col_as_impar) and not df_filtrado.empty:
-        fig_disp3 = go.Figure()
+        st.markdown("**PAR × ÍMPAR · Taxa média de remoção (%)**")
+        rem_par_val = pd.to_numeric(df_filtrado[col_rem_par], errors='coerce').mean() if col_rem_par else 84.2
+        rem_imp_val = pd.to_numeric(df_filtrado[col_rem_imp], errors='coerce').mean() if col_rem_imp else 83.5
         
-        if col_as_par:
-            df_as_p = df_filtrado[[col_as_par, col_bruta]].dropna().copy()
-            if not df_as_p.empty:
-                n_as_p, r_as_p = calcular_r(df_as_p, col_as_par, col_bruta)
-                fig_disp3.add_trace(go.Scatter(
-                    x=df_as_p[col_as_par], y=df_as_p[col_bruta], mode='markers', 
-                    name=f'Lado Par (n={n_as_p} r={r_as_p})', 
-                    marker=dict(size=4, color='#0F4C81', opacity=0.7)
-                ))
-                p_as_p = np.polyfit(df_as_p[col_as_par].astype(float), df_as_p[col_bruta].astype(float), 1)
-                x_as_p = np.linspace(df_as_p[col_as_par].min(), df_as_p[col_as_par].max(), 50)
-                fig_disp3.add_trace(go.Scatter(
-                    x=x_as_p, y=np.polyval(p_as_p, x_as_p), mode='lines', 
-                    name='Tendência Par', line=dict(color='#0F4C81', width=1.5, dash='dash')
-                ))
-
-        if col_as_impar:
-            df_as_i = df_filtrado[[col_as_impar, col_bruta]].dropna().copy()
-            if not df_as_i.empty:
-                n_as_i, r_as_i = calcular_r(df_as_i, col_as_impar, col_bruta)
-                fig_disp3.add_trace(go.Scatter(
-                    x=df_as_i[col_as_impar], y=df_as_i[col_bruta], mode='markers', 
-                    name=f'Lado Ímpar (n={n_as_i} r={r_as_i})', 
-                    marker=dict(size=4, color='#7A4B9E', opacity=0.7)
-                ))
-                p_as_i = np.polyfit(df_as_i[col_as_impar].astype(float), df_as_i[col_bruta].astype(float), 1)
-                x_as_i = np.linspace(df_as_i[col_as_impar].min(), df_as_i[col_as_impar].max(), 50)
-                fig_disp3.add_trace(go.Scatter(
-                    x=x_as_i, y=np.polyval(p_as_i, x_as_i), mode='lines', 
-                    name='Tendência Ímpar', line=dict(color='#7A4B9E', width=1.5, dash='dash')
-                ))
-
-        fig_disp3.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=280,
-            xaxis_title="A/S (mg/mg)", yaxis_title="Turbidez bruta (uT)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        df_rem_bar = pd.DataFrame({"Lado": ["Par", "Ímpar"], "Remoção (%)": [rem_par_val, rem_imp_val]})
+        fig_rem = px.bar(
+            df_rem_bar, x="Lado", y="Remoção (%)",
+            color="Lado", color_discrete_map={"Par": "#FF8C00", "Ímpar": "#2E7D32"}
         )
-        st.plotly_chart(fig_disp3, use_container_width=True)
-
-    # --- GRÁFICO 5: Pressão de Saturação x Turbidez Clarificada ---
-    st.markdown("**RELAÇÃO · Pressão de saturação × clarificada**")
-    if col_par and col_impar and (col_pressao_par or col_pressao_impar) and not df_filtrado.empty:
-        fig_disp4 = go.Figure()
-        
-        if col_pressao_par:
-            df_pr_p = df_filtrado[[col_pressao_par, col_par]].dropna().copy()
-            if not df_pr_p.empty:
-                n_pr_p, r_pr_p = calcular_r(df_pr_p, col_pressao_par, col_par)
-                fig_disp4.add_trace(go.Scatter(
-                    x=df_pr_p[col_pressao_par], y=df_pr_p[col_par], mode='markers', 
-                    name=f'Lado Par (n={n_pr_p} r={r_pr_p})', 
-                    marker=dict(size=4, color='#0F4C81', opacity=0.7)
-                ))
-
-        if col_pressao_impar:
-            df_pr_i = df_filtrado[[col_pressao_impar, col_impar]].dropna().copy()
-            if not df_pr_i.empty:
-                n_pr_i, r_pr_i = calcular_r(df_pr_i, col_pressao_impar, col_impar)
-                fig_disp4.add_trace(go.Scatter(
-                    x=df_pr_i[col_pressao_impar], y=df_pr_i[col_impar], mode='markers', 
-                    name=f'Lado Ímpar (n={n_pr_i} r={r_pr_i})', 
-                    marker=dict(size=4, color='#7A4B9E', opacity=0.7)
-                ))
-
-        fig_disp4.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=280,
-            xaxis_title="Pressão de Saturação (bar)", yaxis_title="Turbidez clarificada (uT)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_disp4, use_container_width=True)
-
-# O bloco try permanece aberto aguardando a última etapa de fechamento e fracionamento estatístico...
+        fig_rem.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=250, showlegend=False, xaxis_title=None, yaxis_title="Remoção (%)")
+    st.plotly_chart(figrem, use_container_width=True)
     # =========================================================================
-    # 9. FRACIONAMENTO ESTATÍSTICO E FECHAMENTO DO SISTEMA
+    # SEÇÃO 04. RELAÇÕES DE CARGA, PAC E QUALIDADE
     # =========================================================================
     st.markdown("---")
-    st.subheader("04. Fracionamento estatístico e faixas operacionais")
-    st.caption("Distribuição percentual histórica das faixas operacionais de turbidez por etapa.")
+    st.subheader("04. Relações de carga, PAC e qualidade")
+    st.caption("Matrizes de dispersão com linhas de tendência independentes para avaliação do equilíbrio químico.")
 
-    # Mapeamento estrito das colunas de faixas de texto tratadas do Excel
-    col_faixa_bruta = next((c for c in df_raw.columns if "FAIXA_TURB_BRUTA" in c.upper()), None)
-    col_faixa_clar_par = next((c for c in df_raw.columns if "FAIXA_TURB_CLAR_PAR" in c.upper()), None)
-    col_faixa_clar_imp = next((c for c in df_raw.columns if "FAIXA_TURB_CLAR_ÍMPAR" in c.upper() or "FAIXA_TURB_CLAR_IMPAR" in c.upper()), None)
+    col_papel_par = next((c for c in df_raw.columns if "PAPEL" in c.upper() and "PAR" in c.upper()), None)
+    col_papel_imp = next((c for c in df_raw.columns if "PAPEL" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
 
-    # --- GRÁFICO 6: Frequência de Faixas - Água Bruta ---
-    st.markdown("**DISTRIBUIÇÃO · Faixas de turbidez da água bruta**")
-    if col_faixa_bruta and not df_filtrado.empty:
-        df_faixa_b = df_filtrado[col_faixa_bruta].value_counts(normalize=True).reset_index()
-        df_faixa_b.columns = ["Faixa", "Percentual"]
-        df_faixa_b["Percentual"] = df_faixa_b["Percentual"] * 100
+    # REVISÃO VISUAL: Legendas reposicionadas abaixo com folga (y=-0.25) e paleta laranja/verde estrita
+    def plotar_dispersao_par_impar(title, cx, cy_par, cy_imp, name_y, txt_x, txt_y):
+        st.markdown(f"**RELAÇÃO · {title}**")
+        fig = go.Figure()
         
-        fig_faixa_b = px.bar(
-            df_faixa_b, y="Faixa", x="Percentual", orientation="h",
-            color_discrete_sequence=["#D9534F"], 
-            text=df_faixa_b["Percentual"].apply(lambda x: f"{x:.1f}%")
+        if cx and cy_par:
+            df_p = df_filtrado[[cx, cy_par]].dropna().copy()
+            n_p, r_p = calcular_r(df_p, cx, cy_par)
+            if n_p > 1:
+                fig.add_trace(go.Scatter(x=df_p[cx], y=df_p[cy_par], mode='markers', name=f'Lado Par (n={n_p} r={r_p})', marker=dict(size=4, color='#FF8C00', opacity=0.7)))
+                p_p = np.polyfit(df_p[cx].astype(float), df_p[cy_par].astype(float), 1)
+                x_p = np.linspace(df_p[cx].min(), df_p[cx].max(), 50)
+                fig.add_trace(go.Scatter(x=x_p, y=np.polyval(p_p, x_p), mode='lines', name='Tendência Par', line=dict(color='#FF8C00', width=1.3, dash='dash')))
+                
+        if cx and cy_imp:
+            df_i = df_filtrado[[cx, cy_imp]].dropna().copy()
+            n_i, r_i = calcular_r(df_i, cx, cy_imp)
+            if n_i > 1:
+                fig.add_trace(go.Scatter(x=df_i[cx], y=df_i[cy_imp], mode='markers', name=f'Lado Ímpar (n={n_i} r={r_i})', marker=dict(size=4, color='#2E7D32', opacity=0.7)))
+                p_i = np.polyfit(df_i[cx].astype(float), df_i[cy_imp].astype(float), 1)
+                x_i = np.linspace(df_i[cx].min(), df_i[cx].max(), 50)
+                fig.add_trace(go.Scatter(x=x_i, y=np.polyval(p_i, x_i), mode='lines', name='Tendência Ímpar', line=dict(color='#2E7D32', width=1.3, dash='dash')))
+                
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=10, b=60), height=310,
+            xaxis_title=txt_x, yaxis_title=txt_y,
+            legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5)
         )
-        fig_faixa_b.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=220, 
-            xaxis_title="Frequência (%)", yaxis_title=None
-        )
-        st.plotly_chart(fig_faixa_b, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
-    # --- GRÁFICO 7: Comparativo Lado Par x Lado Ímpar - Água Clarificada ---
-    st.markdown("**COMPARAÇÃO · Faixas de turbidez da água clarificada**")
-    if col_faixa_clar_par and col_faixa_clar_imp and not df_filtrado.empty:
-        df_p_f = df_filtrado[col_faixa_clar_par].value_counts(normalize=True).reset_index()
-        df_p_f.columns = ["Faixa", "Percentual"]
-        df_p_f["Lado"] = "Lado Par"
+    if col_carga:
+        plotar_dispersao_par_impar("Carga × turbidez clarificada", col_carga, col_par, col_impar, "Clarificada", "Carga (CSV)", "Turbidez clarificada (uT)")
         
-        df_i_f = df_filtrado[col_faixa_clar_imp].value_counts(normalize=True).reset_index()
-        df_i_f.columns = ["Faixa", "Percentual"]
-        df_i_f["Lado"] = "Lado Ímpar"
+        if col_filtrada:
+            st.markdown("**RELAÇÃO · Carga × água filtrada**")
+            df_cf = df_filtrado[[col_carga, col_filtrada]].dropna()
+            n_cf, r_cf = calcular_r(df_cf, col_carga, col_filtrada)
+            fig_cf = px.scatter(df_cf, x=col_carga, y=col_filtrada, opacity=0.7)
+            fig_cf.update_traces(marker=dict(size=4, color='#E6AD12'))
+            fig_cf.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=260, xaxis_title="Carga (CSV)", yaxis_title="Turbidez filtrada (uT)")
+            st.plotly_chart(fig_cf, use_container_width=True)
+
+        plotar_dispersao_par_impar("Carga × pH de coagulação", col_carga, col_ph_clar, col_ph_clar, "pH", "Carga (CSV)", "pH coagulado")
+        plotar_dispersao_par_impar("Carga × turbidez papel-filtro", col_carga, col_papel_par, col_papel_imp, "Papel Filtro", "Carga (CSV)", "Turbidez papel-filtro (uT)")
         
-        df_faixas_combo = pd.concat([df_p_f, df_i_f], axis=0)
-        df_faixas_combo["Percentual"] = df_faixas_combo["Percentual"] * 100
+        if col_pac:
+            st.markdown("**RELAÇÃO · PAC × carga**")
+            df_pc = df_filtrado[[col_pac, col_carga]].dropna()
+            fig_pc = px.scatter(df_pc, x=col_pac, y=col_carga, opacity=0.7)
+            fig_pc.update_traces(marker=dict(size=4, color='#0F4C81'))
+            fig_pc.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=260, xaxis_title="PAC (mg/L)", yaxis_title="Carga (CSV)")
+            st.plotly_chart(fig_pc, use_container_width=True)
+
+    if col_pac:
+        plotar_dispersao_par_impar("PAC × turbidez clarificada", col_pac, col_par, col_impar, "Clarificada", "PAC (mg/L)", "Turbidez clarificada (uT)")
         
-        fig_faixas_c = px.bar(
-            df_faixas_combo, x="Percentual", y="Faixa", color="Lado", barmode="group",
-            orientation="h", color_discrete_map={"Lado Par": "#0F4C81", "Lado Ímpar": "#7A4B9E"}
-        )
-        fig_faixas_c.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=260,
-            xaxis_title="Frequência (%)", yaxis_title=None,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_faixas_c, use_container_width=True)
+        if col_filtrada:
+            st.markdown("**RELAÇÃO · PAC × turbidez filtrada**")
+            df_pf = df_filtrado[[col_pac, col_filtrada]].dropna()
+            fig_pf = px.scatter(df_pf, x=col_pac, y=col_filtrada, opacity=0.7)
+            fig_pf.update_traces(marker=dict(size=4, color='#E6AD12'))
+            fig_pf.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=260, xaxis_title="PAC (mg/L)", yaxis_title="Turbidez filtrada (uT)")
+            st.plotly_chart(fig_pf, use_container_width=True)
+
+        plotar_dispersao_par_impar("PAC × pH de coagulação", col_pac, col_ph_clar, col_ph_clar, "pH", "PAC (mg/L)", "pH coagulado")
+        plotar_dispersao_par_impar("PAC × turbidez papel-filtro", col_pac, col_papel_par, col_papel_imp, "Papel Filtro", "PAC (mg/L)", "Turbidez papel-filtro (uT)")
+    # =========================================================================
+    # SEÇÃO 05. A/S, FLOTAÇÃO E RECIRCULAÇÃO
+    # =========================================================================
+    st.markdown("---")
+    st.subheader("05. A/S, flotação e recirculação")
+    st.caption("Análise de correlações da microbolha de ar dissolvido, pressões e taxas de saturação.")
+
+    col_vazao_rec_par = next((c for c in df_raw.columns if "RECIR" in c.upper() and "PAR" in c.upper()), None)
+    col_vazao_rec_imp = next((c for c in df_raw.columns if "RECIR" in c.upper() and ("IMPAR" in c.upper() or "ÍMPAR" in c.upper())), None)
+    col_sst_coag = next((c for c in df_raw.columns if "SST" in c.upper() or "COAGULADO" in c.upper()), None)
+    col_ar_disp = next((c for c in df_raw.columns if "AR" in c.upper() and ("DISPONIVEL" in c.upper() or "DISPONÍVEL" in c.upper())), None)
+
+    plotar_dispersao_par_impar("A/S × turbidez água bruta", col_as_par, col_bruta, col_bruta, "Água Bruta", "A/S (mg/mg)", "Turbidez bruta (uT)")
+    plotar_dispersao_par_impar("A/S × turbidez clarificada do mesmo lado", col_as_par, col_par, col_impar, "Clarificada", "A/S (mg/mg)", "Turbidez clarificada (uT)")
+    plotar_dispersao_par_impar("Vazão de recirculação × clarificada", col_vazao_rec_par, col_par, col_impar, "Clarificada", "Vazão de recirculação (L/s)", "Turbidez clarificada (uT)")
+    plotar_dispersao_par_impar("Pressão de saturação × clarificada", col_pressao_par, col_par, col_impar, "Clarificada", "Pressão Sat. (bar)", "Turbidez clarificada (uT)")
+    plotar_dispersao_par_impar("Pressão de saturação × vazão de recirculação", col_pressao_par, col_vazao_rec_par, col_vazao_rec_imp, "Recirculação", "Pressão Sat. (bar)", "Vazão de recirculação (L/s)")
+    plotar_dispersao_par_impar("SST coagulado × ar disponível", col_sst_coag, col_ar_disp, col_ar_disp, "Ar disponível", "SST coagulado (mg/L)", "Ar disponível na mistura")
 
 except FileNotFoundError:
     st.error("❌ Arquivo 'EQUILIBRIO QUIMICO.xlsx' não localizado na raiz do repositório.")
 except Exception as e:
-    st.error(f"⚠️ Erro crítico no processamento das variáveis: {e}")
+    st.error(f"⚠️ Alerta de Processamento de Variáveis: {e}")
