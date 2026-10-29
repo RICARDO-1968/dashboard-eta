@@ -8,8 +8,6 @@ import plotly.graph_objects as go
 # SISTEMA DE SEGURANÇA (AUTENTICAÇÃO POR SENHA)
 # ==============================================================================
 # Nota: Substitua 'sua_senha_aqui' pela senha real do seu projeto se ela for diferente
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
 
 if not st.session_state["autenticado"]:
     st.title("🔒 Acesso Restrito — Dashboard ETA Brasília")
