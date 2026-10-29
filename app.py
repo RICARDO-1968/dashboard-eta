@@ -174,6 +174,47 @@ with m_col2:
     st.markdown(f"<div class='metric-card'><div class='metric-title'>Turbidez filtrada média</div><div class='metric-value'>{v_filt_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
     v_rem_media = round(pd.to_numeric(df_filtrado[col_rem_par], errors='coerce').mean(), 1) if col_rem_par else 84.2
     st.markdown(f"<div class='metric-card'><div class='metric-title'>Remoção média (Lado Par)</div><div class='metric-value'>{v_rem_media} <span style='font-size:0.8rem;font-weight:normal;'>%</span></div></div>", unsafe_allow_html=True)
+# --- LOCALIZE ESTE BLOCO NO SEU CÓDIGO E SUBSTITUA/ADICIONE AS LINHAS ABAIXO ---
+
+# 1. Registros Válidos
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Registros válidos</p>'
+            '<h2 style="margin:0; font-weight:bold;">577</h2></div>', unsafe_allow_html=True)
+
+# 2. Turbidez Bruta Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Turbidez bruta média</p>'
+            '<h2 style="margin:0; font-weight:bold;">1.42 <span style="font-size:16px;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 3. Clarificada Média (Lado Par)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Clarificada média (Lado Par)</p>'
+            '<h2 style="margin:0; font-weight:bold;">0.16 <span style="font-size:16px;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 4. NOVA: Clarificada Média (Lado Ímpar)  <-- ADICIONAR ESTA LINHA
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Clarificada média (Lado Ímpar)</p>'
+            '<h2 style="margin:0; font-weight:bold;">0.00 <span style="font-size:16px;">uT</span></h2></div>', unsafe_allow_html=True) # Substitua 0.00 pela sua variável ou valor real
+
+# 5. Vazão Bruta Total Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Vazão bruta total média</p>'
+            '<h2 style="margin:0; font-weight:bold;">2073.12 <span style="font-size:16px;">L/s</span></h2></div>', unsafe_allow_html=True)
+
+# 6. Turbidez Filtrada Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Turbidez filtrada média</p>'
+            '<h2 style="margin:0; font-weight:bold;">0.12 <span style="font-size:16px;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 7. Remoção Média (Lado Par)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Remoção média (Lado Par)</p>'
+            '<h2 style="margin:0; font-weight:bold;">0.9 <span style="font-size:16px;">%</span></h2></div>', unsafe_allow_html=True)
+
+# 8. NOVA: Remoção Média (Lado Ímpar)  <-- ADICIONAR ESTA LINHA
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 15px; margin-bottom: 20px;">'
+            '<p style="margin:0; color:#555;">Remoção média (Lado Ímpar)</p>'
+            '<h2 style="margin:0; font-weight:bold;">0.0 <span style="font-size:16px;">%</span></h2></div>', unsafe_allow_html=True) # Substitua 0.0 pela sua variável ou valor real
 
 # =========================================================================
 # SEÇÃO 01. LEITURA DO PROCESSO
