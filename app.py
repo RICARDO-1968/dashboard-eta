@@ -161,15 +161,6 @@ st.title("Equilíbrio químico integrado")
 st.caption("Visão analítica de captações, coagulação, flotação, filtração e clarificação.")
 
 m_col1, m_col2 = st.columns(2)
-# --- LINHAS DE CÁLCULO DAS MÉDIAS ---
-# Supondo que seu dataframe esteja carregado na variável 'df'
-
-turb_clari_par = df['Turbidez Clarificada Lado Par'].mean() # Exemplo da linha que já existe
-rem_par = df['Remoção Lado Par'].mean()                     # Exemplo da linha que já existe
-
-# 🚀 INSIRA ESTAS DUAS NOVAS LINHAS PARA OPERACIONALIZAR OS DADOS REAIS:
-turb_clari_impar = df['ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'].mean()
-rem_impar = df['TAXA_RECIR. _ÍMPAR'].mean()
 
 # --- LOCALIZE ESTE BLOCO NO SEU CÓDIGO E SUBSTITUA/ADICIONE AS LINHAS ABAIXO ---
 
