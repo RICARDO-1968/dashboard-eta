@@ -166,22 +166,7 @@ m_col1, m_col2 = st.columns(2)
 # ==============================================================================
 
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
-if 'df' in globals():
-    df_dados = df
-elif 'dados' in globals():
-    df_dados = dados
-elif 'df_equilibrio' in globals():
-    df_dados = df_equilibrio
-elif len(st.session_state) > 0:
-    # Se estiver guardada na memória do Streamlit, pegamos a primeira tabela encontrada
-    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), None)
-else:
-    df_dados = None
-
-# Se mesmo assim não encontrar, criamos uma proteção para o app não quebrar
-if df_dados is None:
-    st.error("⚠️ Atenção: Não conseguimos localizar a planilha carregada. Verifique se o arquivo Excel foi lido antes deste bloco.")
-    df_dados = pd.DataFrame(columns=['ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 'TAXA_RECIR. _ÍMPAR'])
+    df_dados = EQUILIBRIO QUIMICO COM CARGA 
 
 # ==============================================================================
 # CÁLCULO DAS MÉDIAS COM PROTEÇÃO CONTRA COLUNAS INEXISTENTES
