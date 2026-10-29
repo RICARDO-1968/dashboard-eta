@@ -167,35 +167,35 @@ m_col1, m_col2 = st.columns(2)
 
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
 # ==============================================================================
-# DETETIVE DE VARIÁVEIS (TEMPORÁRIO)
+# 1. CONEXÃO DEFINITIVA COM A PLANILHA FILTRADA DO SEU APP
 # ==============================================================================
-import streamlit as st
-import pandas as pd
+df_dados = df_filtrado
 
-# Procura todas as planilhas existentes no seu script original
-planilhas_encontradas = [nome for nome, var in globals().items() if isinstance(var, pd.DataFrame) and not nome.startswith('_')]
-
-st.warning(f"🔍 Detetive de Dados: Encontramos as seguintes planilhas no seu código: {planilhas_encontradas}")
-
-# Tentamos usar a primeira que aparecer na lista acima
-df_dados = globals()[planilhas_encontradas[0]] if planilhas_encontradas else pd.DataFrame()
-
-# --- Mantemos as funções de cálculo idênticas ---
+# Função auxiliar inteligente para calcular a média buscando pelo nome da coluna
 def obter_media_segura(dataframe, nome_coluna):
-    if dataframe.empty: return 0.0
-    if nome_coluna in dataframe.columns: return dataframe[nome_coluna].mean()
+    if dataframe is None or dataframe.empty:
+        return 0.0
+    # 1. Tenta encontrar pelo nome exato
+    if nome_coluna in dataframe.columns:
+        return dataframe[nome_coluna].mean()
+    # 2. Tenta encontrar por aproximação (ignora maiúsculas/minúsculas e espaços)
     for col in dataframe.columns:
-        if nome_coluna.strip().lower() in col.strip().lower(): return dataframe[col].mean()
+        if nome_coluna.strip().lower() in col.strip().lower():
+            return dataframe[col].mean()
     return 0.0
 
-total_registros = len(df_dados)
+# 📊 Cálculos automáticos baseados na tabela df_filtrado
+total_registros = len(df_dados) if df_dados is not None else 0
 turb_bruta_med  = obter_media_segura(df_dados, 'Turbidez Bruta')
 turb_clari_par  = obter_media_segura(df_dados, 'Turbidez Clarificada Lado Par')
 vazao_bruta_med = obter_media_segura(df_dados, 'Vazão Bruta')
 turb_filt_med   = obter_media_segura(df_dados, 'Turbidez Filtrada')
 rem_par_med     = obter_media_segura(df_dados, 'Remoção Lado Par')
+
+# 🚀 Suas duas novas colunas do Lado Ímpar conectadas diretamente
 turb_clari_impar = obter_media_segura(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)')
 rem_impar        = obter_media_segura(df_dados, 'TAXA_RECIR. _ÍMPAR')
+
 
 # --- Certifique-se de que estas linhas estão totalmente encostadas na margem esquerda ---
 # ==============================================================================
