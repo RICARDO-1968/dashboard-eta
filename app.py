@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+        # 🔑 SUA NOVA SENHA DEFINIDA DIRETAMENTE AQUI:
+        # Troque a palavra 'NovaSenha123' pela senha que você quiser usar de agora em diante
+        senha_correta = "NovaSenha123" 
 
 # ==============================================================================
 # BLOCO 1: SISTEMA DE AUTENTICAÇÃO DE ACESSO E CONEXÃO DE DADOS
