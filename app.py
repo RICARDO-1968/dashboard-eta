@@ -168,18 +168,43 @@ m_col1, m_col2 = st.columns(2)
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
 
 # --- Certifique-se de que estas linhas estão totalmente encostadas na margem esquerda ---
-df_dados = df_equilibrio_com_carga
+# ==============================================================================
+# BUSCA AUTOMÁTICA DA PLANILHA NO SISTEMA DO STREAMLIT
+# ==============================================================================
+df_dados = None
 
-# Função auxiliar para calcular a média com segurança
+# 1. Vasculha a memória interna do Streamlit para achar a tabela do Excel
+if len(st.session_state) > 0:
+    for chave, valor in st.session_state.items():
+        if isinstance(valor, pd.DataFrame):
+            # Se acharmos uma tabela que tenha as colunas do Lado Ímpar, escolhemos ela
+            if 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)' in valor.columns:
+                df_dados = valor
+                break
+
+# 2. Se não achou pelo critério específico, pega a primeira tabela do Excel disponível
+if df_dados is None and len(st.session_state) > 0:
+    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), None)
+
+# 3. Caso o app esteja iniciando e ainda não tenha lido nada, cria uma tabela vazia provisória
+if df_dados is None:
+    df_dados = pd.DataFrame()
+
+# ==============================================================================
+# CÁLCULO SEGURO DAS MÉDIAS (SE A COLUNA NÃO EXISTIR, RETORNA ZERO)
+# ==============================================================================
 def obter_media_segura(dataframe, nome_coluna):
+    if dataframe.empty:
+        return 0.0
     if nome_coluna in dataframe.columns:
         return dataframe[nome_coluna].mean()
+    # Procura por aproximação de texto caso haja diferença de acentos ou espaços
     for col in dataframe.columns:
         if nome_coluna.strip().lower() in col.strip().lower():
             return dataframe[col].mean()
     return 0.0
 
-# Cálculos automáticos usando a tabela identificada
+# Cálculos das variáveis com a tabela localizada
 total_registros = len(df_dados)
 turb_bruta_med  = obter_media_segura(df_dados, 'Turbidez Bruta')
 turb_clari_par  = obter_media_segura(df_dados, 'Turbidez Clarificada Lado Par')
@@ -187,7 +212,7 @@ vazao_bruta_med = obter_media_segura(df_dados, 'Vazão Bruta')
 turb_filt_med   = obter_media_segura(df_dados, 'Turbidez Filtrada')
 rem_par_med     = obter_media_segura(df_dados, 'Remoção Lado Par')
 
-# Novas colunas exatas da planilha
+# Suas duas novas colunas do Lado Ímpar
 turb_clari_impar = obter_media_segura(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)')
 rem_impar        = obter_media_segura(df_dados, 'TAXA_RECIR. _ÍMPAR')
 
