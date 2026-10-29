@@ -4,20 +4,37 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- DEFINIÇÃO DA FONTE DE DADOS ---
-# O sistema assume o DataFrame já filtrado pelo seu dashboard
-df_dados = df_filtrado.copy()
+# ==============================================================================
+# BLOCO 1 CORRIGIDO: CONEXÃO SEGURA SEM NAMEERROR
+# ==============================================================================
+
+# 1. Buscando a tabela na memória do sistema para evitar que o app trave
+if 'df_filtrado' in globals():
+    df_dados = df_filtrado.copy()
+elif 'df_raw' in globals():
+    df_dados = df_raw.copy()
+elif len(st.session_state) > 0:
+    # Vasculha o banco interno se a variável global ainda não tiver sido criada
+    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), None)
+else:
+    df_dados = None
+
+# 2. Proteção caso o app esteja iniciando do zero e a planilha ainda não foi lida
+if df_dados is None:
+    df_dados = pd.DataFrame()
 
 # --- FUNÇÃO AUXILIAR DE SEGURANÇA PARA AS COLUNAS ---
 def calcular_media_coluna(df, nome_desejado, fallback_valor=0.0):
-    """Busca a coluna por aproximação de texto para evitar quebras por acentos ou espaços"""
+    if df.empty:
+        return fallback_valor
     for col in df.columns:
         if nome_desejado.strip().lower() in col.strip().lower():
-            # Remove valores nulos (NaN) para não distorcer a média técnica
-            return float(df[col].dropna().mean())
+            # Remove valores vazios para não errar a média técnica da ETA
+            valores_validos = df[col].dropna()
+            return float(valores_validos.mean()) if not valores_validos.empty else fallback_valor
     return fallback_valor
 
-# --- PROCESSAMENTO DOS INDICADORES OPERACIONAIS ---
+# --- PROCESSAMENTO SEGURO DOS INDICADORES OPERACIONAIS ---
 total_registros  = len(df_dados)
 turb_bruta_med   = calcular_media_coluna(df_dados, 'Turbidez Bruta', 1.42)
 turb_clari_par   = calcular_media_coluna(df_dados, 'Turbidez Clarificada Lado Par', 0.16)
@@ -25,9 +42,10 @@ vazao_bruta_med  = calcular_media_coluna(df_dados, 'Vazão Bruta', 2073.12)
 turb_filt_med    = calcular_media_coluna(df_dados, 'Turbidez Filtrada', 0.12)
 rem_par_med      = calcular_media_coluna(df_dados, 'Remoção Lado Par', 0.9)
 
-# --- CONEXÃO DOS DOIS NOVOS CAMPOS SOLICITADOS (LADO ÍMPAR) ---
+# --- CONEXÃO DOS DOIS NOVOS CAMPOS DO LADO ÍMPAR ---
 turb_clari_impar = calcular_media_coluna(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 0.0)
 rem_impar        = calcular_media_coluna(df_dados, 'TAXA_RECIR. _ÍMPAR', 0.0)
+
 st.write("### 📊 Indicadores de Desempenho Operacional")
 
 # Função interna para desenhar o componente HTML padronizado
