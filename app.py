@@ -168,7 +168,7 @@ m_col1, m_col2 = st.columns(2)
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
 
 # --- Certifique-se de que estas linhas estão totalmente encostadas na margem esquerda ---
-df_dados = df_equilibrio_carga
+df_dados = df_equilibrio_com_carga
 
 # Função auxiliar para calcular a média com segurança
 def obter_media_segura(dataframe, nome_coluna):
