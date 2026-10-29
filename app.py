@@ -21,7 +21,7 @@ if not st.session_state["autenticado"]:
         # 🔑 BUSCA A SENHA CONFIGURADA NO SEU REPOSITÓRIO GITHUB / SECRETS
                      # 🔑 SUA NOVA SENHA DEFINIDA DIRETAMENTE AQUI:
         # Troque a palavra 'NovaSenha123' pela senha que você quiser usar de agora em diante
-        senha_correta = "NovaSenha123" 
+        senha_correta = "ETA2026" 
 
         # Se você não configurou os Secrets do Streamlit, substitua st.secrets["password"] 
         # entre aspas pela sua senha real, ex: senha_digitada == "SuaSenhaAqui"
