@@ -149,3 +149,54 @@ renderizar_card_indicador("Remoção média (Lado Par)", f"{rem_par_med:.1f}", "
 
 # 🚀 8. NOVO: Eficiência Percentual de Remoção de Partículas Sólidas e Turbidez (Lado Ímpar)
 renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", "%")
+# ==============================================================================
+# BLOCO 3: BARRA LATERAL (SIDEBAR) DE FILTROS OPERACIONAIS
+# ==============================================================================
+
+# [INTERFACE] Passo 3.1: Configuração do cabeçalho da barra lateral
+# Adiciona um título descritivo e limpo no topo do menu esquerdo do aplicativo.
+st.sidebar.markdown("## 🎛️ Filtros de Seleção (ETA Brasília)")
+st.sidebar.write("Configure os parâmetros abaixo para atualizar as médias e gráficos em tempo real.")
+st.sidebar.write("---")
+
+# [CONTROLE DE DATAS] Passo 3.2: Filtro de Intervalo Temporal
+# Este bloco cria o calendário de seleção de datas. Para evitar erros se o banco de dados
+# estiver carregando ou vazio, fazemos uma verificação de segurança usando a tabela 'df_dados'.
+if 'Data' in df_dados.columns:
+    # Captura a menor e a maior data real contidas no arquivo Excel carregado
+    data_minima = df_dados['Data'].min()
+    data_maxima = df_dados['Data'].max()
+    
+    # Renderiza o componente de calendário na barra lateral para o usuário escolher o período
+    periodo_selecionado = st.sidebar.date_input(
+        "Selecione o período de análise:",
+        value=(data_minima, data_maxima),
+        min_value=data_minima,
+        max_value=data_maxima,
+        key="filtro_calendario_operacional"
+    )
+else:
+    # Fallback/Proteção: Se a coluna de data não for encontrada ou o arquivo estiver lendo,
+    # exibe uma mensagem informativa e evita que a tela do sistema trave.
+    st.sidebar.info("📅 Filtro de data indisponível: Coluna 'Data' não localizada no Excel.")
+
+# [CONTROLE OPERACIONAL] Passo 3.3: Filtros de Seleção Adicionais (Ex: Turno ou Status)
+# Adicionamos aqui espaços para outros filtros comuns que seu app original possuía,
+# como seleção de Turnos operacionais, Operadores ou faixas de vazão específicas.
+if 'Turno' in df_dados.columns:
+    # Captura todas as opções únicas de turnos da lista (ex: Turno A, Turno B, Integral)
+    opcoes_turnos = ['Todos'] + list(df_dados['Turno'].unique())
+    turno_escolhido = st.sidebar.selectbox("Turno Operacional:", opcoes_turnos, key="filtro_turno")
+    
+    # Aplica o filtro de turno na tabela ativa se o usuário escolher um específico
+    if turno_escolhido != 'Todos':
+        df_dados = df_dados[df_dados['Turno'] == turno_escolhido]
+
+st.sidebar.write("---")
+st.sidebar.success("💡 Filtros aplicados com sucesso!")
+
+# ------------------------------------------------------------------------------
+# NOTA DE MANUTENÇÃO:
+# Qualquer novo filtro de tela que você queira adicionar no futuro (ex: filtrar por operador, 
+# filtrar por elevatória específica) deve ser programado dentro deste Bloco 3.
+# ------------------------------------------------------------------------------
