@@ -167,6 +167,29 @@ m_col1, m_col2 = st.columns(2)
 
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
     df_dados = EQUILIBRIO QUIMICO COM CARGA 
+# --- Certifique-se de que estas linhas estão totalmente encostadas na margem esquerda ---
+df_dados = df_equilibrio_carga
+
+# Função auxiliar para calcular a média com segurança
+def obter_media_segura(dataframe, nome_coluna):
+    if nome_coluna in dataframe.columns:
+        return dataframe[nome_coluna].mean()
+    for col in dataframe.columns:
+        if nome_coluna.strip().lower() in col.strip().lower():
+            return dataframe[col].mean()
+    return 0.0
+
+# Cálculos automáticos usando a tabela identificada
+total_registros = len(df_dados)
+turb_bruta_med  = obter_media_segura(df_dados, 'Turbidez Bruta')
+turb_clari_par  = obter_media_segura(df_dados, 'Turbidez Clarificada Lado Par')
+vazao_bruta_med = obter_media_segura(df_dados, 'Vazão Bruta')
+turb_filt_med   = obter_media_segura(df_dados, 'Turbidez Filtrada')
+rem_par_med     = obter_media_segura(df_dados, 'Remoção Lado Par')
+
+# Novas colunas exatas da planilha
+turb_clari_impar = obter_media_segura(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)')
+rem_impar        = obter_media_segura(df_dados, 'TAXA_RECIR. _ÍMPAR')
 
 # ==============================================================================
 # CÁLCULO DAS MÉDIAS COM PROTEÇÃO CONTRA COLUNAS INEXISTENTES
