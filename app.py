@@ -161,19 +161,7 @@ st.title("Equilíbrio químico integrado")
 st.caption("Visão analítica de captações, coagulação, flotação, filtração e clarificação.")
 
 m_col1, m_col2 = st.columns(2)
-with m_col1:
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Registros válidos</div><div class='metric-value'>{len(df_filtrado)}</div></div>", unsafe_allow_html=True)
-    v_bruta_media = round(pd.to_numeric(df_filtrado[col_bruta], errors='coerce').mean(), 2) if col_bruta else 0.0
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Turbidez bruta média</div><div class='metric-value'>{v_bruta_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-    v_clar_media = round(pd.to_numeric(df_filtrado[col_par], errors='coerce').mean(), 2) if col_par else 0.0
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Clarificada média (Lado Par)</div><div class='metric-value'>{v_clar_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-with m_col2:
-    v_vazao_media = round(pd.to_numeric(df_filtrado[col_vazao], errors='coerce').mean(), 2) if col_vazao else 0.0
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Vazão bruta total média</div><div class='metric-value'>{v_vazao_media} <span style='font-size:0.8rem;font-weight:normal;'>L/s</span></div></div>", unsafe_allow_html=True)
-    v_filt_media = round(pd.to_numeric(df_filtrado[col_filtrada], errors='coerce').mean(), 2) if col_filtrada else 0.0
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Turbidez filtrada média</div><div class='metric-value'>{v_filt_media} <span style='font-size:0.8rem;font-weight:normal;'>uT</span></div></div>", unsafe_allow_html=True)
-    v_rem_media = round(pd.to_numeric(df_filtrado[col_rem_par], errors='coerce').mean(), 1) if col_rem_par else 84.2
-    st.markdown(f"<div class='metric-card'><div class='metric-title'>Remoção média (Lado Par)</div><div class='metric-value'>{v_rem_media} <span style='font-size:0.8rem;font-weight:normal;'>%</span></div></div>", unsafe_allow_html=True)
+
 # --- LOCALIZE ESTE BLOCO NO SEU CÓDIGO E SUBSTITUA/ADICIONE AS LINHAS ABAIXO ---
 
 # 1. Registros Válidos
