@@ -82,3 +82,70 @@ rem_par_med     = obter_media_real(df_dados, ['remoção lado par', 'rem_par'], 
 # Conectados cirurgicamente aos cabeçalhos informados: "ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)" e "TAXA_RECIR. _ÍMPAR"
 turb_clari_impar = obter_media_real(df_dados, ['ímpar flotação turb clarificada clp', 'clarificada lado ímpar'], 0.14)
 rem_impar        = obter_media_real(df_dados, ['taxa_recir. _ímpar', 'remoção lado ímpar'], 1.1)
+# ==============================================================================
+# BLOCO 2: APRESENTAÇÃO VISUAL DOS CARTÕES OPERACIONAIS (A PARTIR DA LINHA 85)
+# ==============================================================================
+
+# [INTERRUPÇÃO DE TELA] Título da seção indicando o início dos painéis analíticos
+st.write("### 📊 Indicadores de Desempenho Operacional (Fontes Reduzidas para Mobile)")
+
+# [COMPONENTIZAÇÃO] Passo 2.1: Função unificada para desenhar os cartões em HTML/CSS
+# Para economizar centenas de linhas de código e evitar que o script fique inchado,
+# criamos este modelo reutilizável. Ele replica o design original de barra azul lateral.
+def renderizar_card_indicador(titulo_card, valor_calculado, unidade_medida=""):
+    """
+    Gera o design do cartão com borda lateral azul escuro e fundo cinza claro.
+    - titulo_card: O texto descritivo superior (Tamanho: 12px)
+    - valor_calculado: O dado numérico formatado (Tamanho: 20px)
+    - unidade_medida: uT, L/s ou % (Tamanho: 13px)
+    """
+    # Se houver uma unidade de medida (ex: uT), monta o texto com fonte menor ao lado do número
+    texto_unidade = f' <span style="font-size:13px; font-weight:normal; color:#444;">{unidade_medida}</span>' if unidade_medida else ''
+    
+    # Estrutura HTML customizada injetada no Streamlit
+    html_customizado = f"""
+    <div style="
+        border-left: 5px solid #0f4c81; 
+        padding-left: 12px; 
+        margin-bottom: 12px; 
+        background-color: #f8f9fa; 
+        padding-top: 6px; 
+        padding-bottom: 6px; 
+        border-radius: 0 4px 4px 0;
+    ">
+        <p style="margin:0; color:#555; font-size:12px; font-weight:500;">{titulo_card}</p>
+        <h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">{valor_calculado}{texto_unidade}</h2>
+    </div>
+    """
+    # Envia o comando HTML de forma segura para o Streamlit renderizar na tela
+    st.markdown(html_customizado, unsafe_allow_html=True)
+
+
+# ------------------------------------------------------------------------------
+# [CONSTRUÇÃO OPERACIONAL] Passo 2.2: Renderização física sequencial dos cartões
+# ------------------------------------------------------------------------------
+# Chamamos a função criada acima para cada indicador, puxando as variáveis do Bloco 1.
+
+# 1. Total de Registros Operacionais Identificados
+renderizar_card_indicador("Registros válidos", f"{total_registros}")
+
+# 2. Média Geral da Turbidez que chega da Captação de Água Bruta
+renderizar_card_indicador("Turbidez bruta média", f"{turb_bruta_med:.2f}", "uT")
+
+# 3. Média de Turbidez Clarificada na saída dos Flotadores/Decantadores (Lado Par)
+renderizar_card_indicador("Clarificada média (Lado Par)", f"{turb_clari_par:.2f}", "uT")
+
+# 🚀 4. NOVO: Média de Turbidez Clarificada na saída dos Flotadores/Decantadores (Lado Ímpar)
+renderizar_card_indicador("Clarificada média (Lado Ímpar)", f"{turb_clari_impar:.2f}", "uT")
+
+# 5. Volume Total Médio Adduzido para Processamento na ETA
+renderizar_card_indicador("Vazão bruta total média", f"{vazao_bruta_med:.2f}", "L/s")
+
+# 6. Média da Qualidade da Água na saída das Galerias de Filtração Reversas/Rápidas
+renderizar_card_indicador("Turbidez filtrada média", f"{turb_filt_med:.2f}", "uT")
+
+# 7. Eficiência Percentual de Remoção de Partículas Sólidas e Turbidez (Lado Par)
+renderizar_card_indicador("Remoção média (Lado Par)", f"{rem_par_med:.1f}", "%")
+
+# 🚀 8. NOVO: Eficiência Percentual de Remoção de Partículas Sólidas e Turbidez (Lado Ímpar)
+renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", "%")
