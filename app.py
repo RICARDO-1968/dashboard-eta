@@ -1,11 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-         # 🔑 SUA NOVA SENHA DEFINIDA DIRETAMENTE AQUI:
-        # Troque a palavra 'NovaSenha123' pela senha que você quiser usar de agora em diante
-        senha_correta = "ETA2026" 
-       
-
+         
 # ==============================================================================
 # BLOCO 1: SISTEMA DE AUTENTICAÇÃO DE ACESSO E CONEXÃO DE DADOS
 # ==============================================================================
@@ -23,6 +19,10 @@ if not st.session_state["autenticado"]:
     
     if st.button("Acessar Painel"):
         # 🔑 BUSCA A SENHA CONFIGURADA NO SEU REPOSITÓRIO GITHUB / SECRETS
+                     # 🔑 SUA NOVA SENHA DEFINIDA DIRETAMENTE AQUI:
+        # Troque a palavra 'NovaSenha123' pela senha que você quiser usar de agora em diante
+        senha_correta = "NovaSenha123" 
+
         # Se você não configurou os Secrets do Streamlit, substitua st.secrets["password"] 
         # entre aspas pela sua senha real, ex: senha_digitada == "SuaSenhaAqui"
         senha_correta = st.secrets["password"] if "password" in st.secrets else "admin123"
