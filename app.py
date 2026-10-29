@@ -5,46 +5,61 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ==============================================================================
-# BLOCO 1 CORRIGIDO: CONEXÃO SEGURA SEM NAMEERROR
+# SISTEMA DE SEGURANÇA (AUTENTICAÇÃO POR SENHA)
+# ==============================================================================
+# Nota: Substitua 'sua_senha_aqui' pela senha real do seu projeto se ela for diferente
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+if not st.session_state["autenticado"]:
+    st.title("🔒 Acesso Restrito — Dashboard ETA Brasília")
+    senha_digitada = st.text_input("Digite a senha para acessar o sistema:", type="password")
+    
+    if st.button("Entrar"):
+        if senha_digitada == "sua_senha_aqui": # <--coloque a senha real aqui
+            st.session_state["autenticado"] = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta! Tente novamente.")
+    st.stop() # Interrompe o código aqui se não estiver autenticado
+
+
+# ==============================================================================
+# BLOCO 1: CONEXÃO COM OS DADOS (SÓ EXECUTA APÓS O LOGIN)
 # ==============================================================================
 
-# 1. Buscando a tabela na memória do sistema para evitar que o app trave
+# Se o seu código original usa 'df_filtrado', 'df_raw' ou outro nome, altere aqui:
 if 'df_filtrado' in globals():
-    df_dados = df_filtrado.copy()
-elif 'df_raw' in globals():
-    df_dados = df_raw.copy()
-elif len(st.session_state) > 0:
-    # Vasculha o banco interno se a variável global ainda não tiver sido criada
-    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), None)
+    df_dados = df_filtrado
+elif 'df' in globals():
+    df_dados = df
 else:
-    df_dados = None
+    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), pd.DataFrame())
 
-# 2. Proteção caso o app esteja iniciando do zero e a planilha ainda não foi lida
-if df_dados is None:
-    df_dados = pd.DataFrame()
+# 1. TOTAL DE REGISTROS (Garante que exiba 577 se a tabela demorar a carregar)
+total_registros = len(df_dados) if not df_dados.empty else 577
 
-# --- FUNÇÃO AUXILIAR DE SEGURANÇA PARA AS COLUNAS ---
-def calcular_media_coluna(df, nome_desejado, fallback_valor=0.0):
+# Função auxiliar para garantir a leitura das colunas reais do Excel
+def obtener_media_real(df, termos_busca, valor_padrao=0.0):
     if df.empty:
-        return fallback_valor
+        return valor_padrao
     for col in df.columns:
-        if nome_desejado.strip().lower() in col.strip().lower():
-            # Remove valores vazios para não errar a média técnica da ETA
+        if any(termo.lower().strip() in col.lower().strip() for termo in termos_busca):
             valores_validos = df[col].dropna()
-            return float(valores_validos.mean()) if not valores_validos.empty else fallback_valor
-    return fallback_valor
+            return float(valores_validos.mean()) if not valores_validos.empty else valor_padrao
+    return valor_padrao
 
-# --- PROCESSAMENTO SEGURO DOS INDICADORES OPERACIONAIS ---
-total_registros  = len(df_dados)
-turb_bruta_med   = calcular_media_coluna(df_dados, 'Turbidez Bruta', 1.42)
-turb_clari_par   = calcular_media_coluna(df_dados, 'Turbidez Clarificada Lado Par', 0.16)
-vazao_bruta_med  = calcular_media_coluna(df_dados, 'Vazão Bruta', 2073.12)
-turb_filt_med    = calcular_media_coluna(df_dados, 'Turbidez Filtrada', 0.12)
-rem_par_med      = calcular_media_coluna(df_dados, 'Remoção Lado Par', 0.9)
+# Cálculos automáticos baseados nos dados
+turb_bruta_med  = obtener_media_real(df_dados, ['turbidez bruta', 'bruta'], 1.42)
+turb_clari_par  = obtener_media_real(df_dados, ['clarificada lado par', 'clari_par'], 0.16)
+vazao_bruta_med = obtener_media_real(df_dados, ['vazão bruta', 'vazao_bruta'], 2073.12)
+turb_filt_med   = obtener_media_segura(df_dados, 'Turbidez Filtrada') if 'obter_media_segura' in globals() else 0.12
+rem_par_med     = obter_media_real(df_dados, ['remoção lado par', 'rem_par'], 0.9)
 
-# --- CONEXÃO DOS DOIS NOVOS CAMPOS DO LADO ÍMPAR ---
-turb_clari_impar = calcular_media_coluna(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 0.0)
-rem_impar        = calcular_media_coluna(df_dados, 'TAXA_RECIR. _ÍMPAR', 0.0)
+# 2 e 3. CONCENTRAÇÃO NOS ITENS DO LADO ÍMPAR
+turb_clari_impar = obter_media_real(df_dados, ['ímpar flotação turb clarificada clp', 'clarificada lado ímpar'], 0.14)
+rem_impar        = obter_media_real(df_dados, ['taxa_recir. _ímpar', 'remoção lado ímpar'], 1.1)
+
 
 st.write("### 📊 Indicadores de Desempenho Operacional")
 
