@@ -192,8 +192,8 @@ vazao_bruta_med = obter_media_segura(df_dados, 'Vazão Bruta')
 turb_filt_med   = obter_media_segura(df_dados, 'Turbidez Filtrada')
 rem_par_med     = obter_media_segura(df_dados, 'Remoção Lado Par')
 # 🚀 COPIE E COLE ESTAS DUAS LINHAS EXATAMENTE ABAIXO DOS CÁLCULOS DO LADO PAR:
-turb_clari_impar = df_filtrado['ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'].mean()
-rem_impar = df_filtrado['TAXA_RECIR. _ÍMPAR'].mean()
+turb_clari_impar = obter_média-segura(df_dados, 'Turbidez Clarificada Lado Ímpar')
+#rem_impar = df_filtrado['TAXA_RECIR. _ÍMPAR'].mean()
 
 # 🚀 Suas duas novas colunas do Lado Ímpar conectadas diretamente
 turb_clari_impar = obter_media_segura(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)')
