@@ -161,6 +161,82 @@ st.title("Equilíbrio químico integrado")
 st.caption("Visão analítica de captações, coagulação, flotação, filtração e clarificação.")
 
 m_col1, m_col2 = st.columns(2)
+# ==============================================================================
+# PROCURANDO A PLANILHA CARREGADA AUTOMATICAMENTE PARA EVITAR O NAMEERROR
+# ==============================================================================
+
+# Tentamos encontrar a planilha nas variáveis comuns do seu código
+if 'df' in globals():
+    df_dados = df
+elif 'dados' in globals():
+    df_dados = dados
+elif 'df_equilibrio' in globals():
+    df_dados = df_equilibrio
+elif len(st.session_state) > 0:
+    # Se estiver guardada na memória do Streamlit, pegamos a primeira tabela encontrada
+    df_dados = next((val for val in st.session_state.values() if isinstance(val, pd.DataFrame)), None)
+else:
+    df_dados = None
+
+# Se mesmo assim não encontrar, criamos uma proteção para o app não quebrar
+if df_dados is None:
+    st.error("⚠️ Atenção: Não conseguimos localizar a planilha carregada. Verifique se o arquivo Excel foi lido antes deste bloco.")
+    df_dados = pd.DataFrame(columns=['ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 'TAXA_RECIR. _ÍMPAR'])
+
+# ==============================================================================
+# CÁLCULO DAS MÉDIAS COM PROTEÇÃO CONTRA COLUNAS INEXISTENTES
+# ==============================================================================
+
+# Função auxiliar para calcular a média com segurança (se a coluna não existir, mostra 0)
+def obter_media_segura(dataframe, nome_coluna):
+    if nome_coluna in dataframe.columns:
+        return dataframe[nome_coluna].mean()
+    # Tenta procurar por aproximação caso haja algum erro de digitação/acento
+    for col in dataframe.columns:
+        if nome_coluna.strip().lower() in col.strip().lower():
+            return dataframe[col].mean()
+    return 0.0
+
+# 📊 Cálculos automáticos usando a tabela identificada
+total_registros = len(df_dados)
+turb_bruta_med  = obter_media_segura(df_dados, 'Turbidez Bruta')
+turb_clari_par  = obter_media_segura(df_dados, 'Turbidez Clarificada Lado Par')
+vazao_bruta_med = obter_media_segura(df_dados, 'Vazão Bruta')
+turb_filt_med   = obter_media_segura(df_dados, 'Turbidez Filtrada')
+rem_par_med     = obter_media_segura(df_dados, 'Remoção Lado Par')
+
+# 🚀 Suas duas novas colunas exatas da planilha
+turb_clari_impar = obter_media_segura(df_dados, 'ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)')
+rem_impar        = obter_media_segura(df_dados, 'TAXA_RECIR. _ÍMPAR')
+
+
+# ==============================================================================
+# EXIBIÇÃO DOS CARDS VISUAIS (FONTES REDUZIDAS)
+# ==============================================================================
+
+# 1. Card Registros Válidos
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Registros válidos</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + str(total_registros) + '</h2></div>', unsafe_allow_html=True)
+
+# 2. Card Turbidez Bruta Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Turbidez bruta média</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{turb_bruta_med:.2f}" + ' <span style="font-size:13px; font-weight:normal;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 3. Card Clarificada Média (Lado Par)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Clarificada média (Lado Par)</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{turb_clari_par:.2f}" + ' <span style="font-size:13px; font-weight:normal;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 🚀 Card Clarificada Média (Lado Ímpar)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Clarificada média (Lado Ímpar)</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{turb_clari_impar:.2f}" + ' <span style="font-size:13px; font-weight:normal;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 5. Card Vazão Bruta Total Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Vazão bruta total média</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{vazao_bruta_med:.2f}" + ' <span style="font-size:13px; font-weight:normal;">L/s</span></h2></div>', unsafe_allow_html=True)
+
+# 6. Card Turbidez Filtrada Média
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Turbidez filtrada média</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{turb_filt_med:.2f}" + ' <span style="font-size:13px; font-weight:normal;">uT</span></h2></div>', unsafe_allow_html=True)
+
+# 7. Card Remoção Média (Lado Par)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Remoção média (Lado Par)</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{rem_par_med:.1f}" + ' <span style="font-size:13px; font-weight:normal;">%</span></h2></div>', unsafe_allow_html=True)
+
+# 🚀 Card Remoção Média (Lado Ímpar)
+st.markdown('<div style="border-left: 5px solid #0f4c81; padding-left: 12px; margin-bottom: 12px; background-color: #f8f9fa; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;"><p style="margin:0; color:#666; font-size:12px; font-weight:500;">Remoção média (Lado Ímpar)</p><h2 style="margin:0; font-weight:700; color:#111; font-size:20px;">' + f"{rem_impar:.1f}" + ' <span style="font-size:13px; font-weight:normal;">%</span></h2></div>', unsafe_allow_html=True)
 
 # --- LOCALIZE ESTE BLOCO NO SEU CÓDIGO E SUBSTITUA/ADICIONE AS LINHAS ABAIXO ---
 
