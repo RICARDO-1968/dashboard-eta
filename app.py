@@ -166,7 +166,7 @@ m_col1, m_col2 = st.columns(2)
 # ==============================================================================
 
 # Tentamos encontrar a planilha nas variáveis comuns do seu código
-    df_dados = EQUILIBRIO QUIMICO COM CARGA 
+
 # --- Certifique-se de que estas linhas estão totalmente encostadas na margem esquerda ---
 df_dados = df_equilibrio_carga
 
