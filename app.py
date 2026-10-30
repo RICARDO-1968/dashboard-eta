@@ -160,6 +160,20 @@ import streamlit as st
 import pandas as pd
 
 # ------------------------------------------------------------------------------
+# SEÇÃO 0: CONFIGURAÇÃO DE LAYOUT DA PÁGINA (CONTROLE DO FILTRO LATERAL)
+# ------------------------------------------------------------------------------
+# NOTA: O parâmetro 'initial_sidebar_state' define como o filtro se comporta ao abrir.
+# Opções disponíveis:
+#   - "expanded" : Mantém a barra lateral de filtros aberta por padrão.
+#   - "collapsed": Mantém a barra recolhida (oculta), maximizando o espaço do gráfico.
+#   - "auto"     : O Streamlit decide baseado no tamanho da tela do operador (Mobile/PC).
+st.set_page_config(
+    page_title="Dashboard ETA Brasília",
+    layout="wide",
+    initial_sidebar_state="expanded"  # Garante que o operador veja os filtros logo de início
+)
+
+# ------------------------------------------------------------------------------
 # SEÇÃO 1: CARREGAMENTO E CACHE DE DADOS (OTIMIZAÇÃO DE PERFORMANCE)
 # ------------------------------------------------------------------------------
 # @st.cache_data é crucial aqui para evitar releituras lentas do arquivo Excel
@@ -194,7 +208,7 @@ def carregar_dados_equilibrio_quimico():
         
     except Exception as erro:
         # Retorna um aviso visual amigável caso o arquivo mude de nome ou sumir
-        st.error(f" Erro crítico ao acessar 'EQUILIBRIO QUIMICO COM CARGA': {erro}")
+        st.error(f"❌ Erro crítico ao acessar 'EQUILIBRIO QUIMICO COM CARGA': {erro}")
         return pd.DataFrame()
 
 
@@ -214,7 +228,8 @@ if not df_operacional.empty:
     # SEÇÃO 3: INTERFACE GRÁFICA (SIDEBAR) - COMPONENTES DE SELEÇÃO
     # ------------------------------------------------------------------------------
     st.sidebar.markdown("---")
-    st.sidebar.markdown("###  BLOQUEIO E SELEÇÃO OPERACIONAL")
+    st.sidebar.markdown("### 🎛️ BLOQUEIO E SELEÇÃO OPERACIONAL")
+    st.sidebar.caption("💡 Use a seta no topo esquerdo para recolher ou expandir este menu.")
     st.sidebar.markdown("---")
 
     # --- SUBSEÇÃO: FILTROS CRONOLÓGICOS (DATAS DO SISTEMA) ---
@@ -246,7 +261,7 @@ if not df_operacional.empty:
     st.sidebar.markdown("---")
     st.sidebar.write("**Parâmetros de Turbidez:**")
 
-    # --- SUBSEÇÃO: MAQUEAMENTO DAS FAIXAS DE TURBIDEZ ---
+    # --- SUBSEÇÃO: MAPEAMENTO DAS FAIXAS DE TURBIDEZ ---
     
     # 1. Tratamento da Turbidez Bruta: Remove nulos, isola únicos e ordena em ordem alfabética/numérica
     lista_turb_bruta = sorted(df_operacional['FAIXA_TURB_BRUTA'].dropna().unique())
@@ -281,7 +296,7 @@ if not df_operacional.empty:
     )
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCAUTA)
+    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA)
     # ------------------------------------------------------------------------------
     # Primeiro estágio: Aplica o corte temporal estrito baseado nas datas selecionadas
     df_filtrado = df_operacional[
@@ -305,9 +320,7 @@ if not df_operacional.empty:
     # ------------------------------------------------------------------------------
     # SEÇÃO 5: FEEDBACK OPERACIONAL (MÉTRICA DE CONTROLE DE REGISTROS)
     # ------------------------------------------------------------------------------
-    # Uma métrica útil para o operador saber se o filtro cruzado não resultou em zero registros
     st.info(f"⚙️ Filtros Ativos | Volumetria de dados selecionados: **{len(df_filtrado)} linhas encontradas**.")
 
 else:
-    # Aviso de contingência caso a carga inicial falhe por completo
     st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser renderizado porque a base de dados operacional está vazia ou inacessível.")
