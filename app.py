@@ -154,6 +154,7 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 3: CONTROLES DE SELEÇÃO OPERACIONAL E FILTROS DINÂMICOS (MULTISELEÇÃO)
 # OBJETIVO: Mapear faixas de turbidez, elevatórias e limites temporais de forma múltipla
+# TERMINA EM: Linha 312
 # ==============================================================================
 
 import streamlit as st
@@ -166,7 +167,7 @@ import pandas as pd
 def carregar_dados_equilibrio_quimico():
     """
     Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
-    às colunas utilizadas no escopo de filtros para aliviar a memória.
+    às colunas utilizadas no escopo de filtros e gráficos para aliviar a memória.
     """
     colunas_alvo = [
         'DATA', 
@@ -174,11 +175,15 @@ def carregar_dados_equilibrio_quimico():
         'FAIXA_TURB_BRUTA', 
         'FAIXA_TURB_CLAR_PAR', 
         'FAIXA_TURB_CLAR_ÍMPAR', 
-        'FAIXA_TURB_FILT'
+        'FAIXA_TURB_FILT',
+        'ÁGUA BRUTA TURB (uT)',
+        'ÁGUA FILTRADA TURB (uT)',
+        'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
+        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
     ]
     
     try:
-        # Leitura da planilha configurada para o ambiente
+        # Leitura estrita das colunas mapeadas da planilha oficial
         df = pd.read_excel("EQUILIBRIO QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
         
         # Converte a coluna de tempo para o formato datetime do Pandas
@@ -193,10 +198,13 @@ def carregar_dados_equilibrio_quimico():
 df_operacional = carregar_dados_equilibrio_quimico()
 
 # ------------------------------------------------------------------------------
-# SEÇÃO 2: VERIFICAÇÃO E PROCESSAMENTO DOS LIMITES TEMPORAIS
+# SEÇÃO 2: PROCESSAMENTO INTERNO E PROCESSAMENTO DE FILTROS CASCATA
 # ------------------------------------------------------------------------------
+# Inicializa a variável df_filtrado no escopo global para o Bloco 4 não quebrar
+if 'df_filtrado' not in st.session_state:
+    st.session_state['df_filtrado'] = pd.DataFrame()
+
 if not df_operacional.empty:
-    
     # Extrai dinamicamente a menor e a maior data registradas na planilha original
     data_limite_inferior = df_operacional['DATA'].min().date()
     data_limite_superior = df_operacional['DATA'].max().date()
@@ -235,17 +243,16 @@ if not df_operacional.empty:
     st.sidebar.markdown("---")
     st.sidebar.write("**Origem e Parâmetros de Processo (Múltiplo):**")
 
-    # --- ALTERAÇÃO PARA MULTISELECT: SELEÇÃO DE ELEVATÓRIAS ---
+    # --- MULTISELECT: SELEÇÃO DE ELEVATÓRIAS ---
     lista_tipo_agua = sorted(df_operacional['TIPO_AGUA_BRUTA'].dropna().unique())
     filtro_tipo_agua = st.sidebar.multiselect(
         "Elevatória / Tipo de Água Bruta",
         options=lista_tipo_agua,
-        default=[],  # Inicia vazio = Tudo selecionado por padrão
+        default=[],
         help="Selecione uma ou mais elevatórias de origem para filtrar os dados simultaneamente."
     )
 
-    # --- ALTERAÇÃO PARA MULTISELECT: FAIXAS DE TURBIDEZ ---
-    
+    # --- MULTISELECT: FAIXAS DE TURBIDEZ ---
     lista_turb_bruta = sorted(df_operacional['FAIXA_TURB_BRUTA'].dropna().unique())
     filtro_turb_bruta = st.sidebar.multiselect(
         "Faixa Turbidez Bruta",
@@ -279,128 +286,113 @@ if not df_operacional.empty:
     )
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA COM LISTAS)
+    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA)
     # ------------------------------------------------------------------------------
-    # Passo 1: Restrição temporal obrigatória
-    df_filtrado = df_operacional[
+    df_temp = df_operacional[
         (df_operacional['DATA'].dt.date >= data_selecionada_ini) & 
         (df_operacional['DATA'].dt.date <= data_selecionada_fim)
     ]
 
-    # Passo 2: Filtragem condicional usando .isin() caso o operador tenha marcado itens
-    if filtro_tipo_agua:  # Se a lista não estiver vazia, aplica o filtro
-        df_filtrado = df_filtrado[df_filtrado['TIPO_AGUA_BRUTA'].isin(filtro_tipo_agua)]
+    if filtro_tipo_agua:
+        df_temp = df_temp[df_temp['TIPO_AGUA_BRUTA'].isin(filtro_tipo_agua)]
 
     if filtro_turb_bruta:
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'].isin(filtro_turb_bruta)]
+        df_temp = df_temp[df_temp['FAIXA_TURB_BRUTA'].isin(filtro_turb_bruta)]
         
     if filtro_turb_clar_par:
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_PAR'].isin(filtro_turb_clar_par)]
+        df_temp = df_temp[df_temp['FAIXA_TURB_CLAR_PAR'].isin(filtro_turb_clar_par)]
         
     if filtro_turb_clar_impar:
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'].isin(filtro_turb_clar_impar)]
+        df_temp = df_temp[df_temp['FAIXA_TURB_CLAR_ÍMPAR'].isin(filtro_turb_clar_impar)]
         
     if filtro_turb_filt:
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_FILT'].isin(filtro_turb_filt)]
+        df_temp = df_temp[df_temp['FAIXA_TURB_FILT'].isin(filtro_turb_filt)]
+
+    # Salva o resultado final filtrado no Session State para isolamento dos blocos
+    st.session_state['df_filtrado'] = df_temp
 
     # ------------------------------------------------------------------------------
     # SEÇÃO 5: FEEDBACK OPERACIONAL
     # ------------------------------------------------------------------------------
-    st.info(f"⚙️ Filtros Ativos | Volumetria de dados selecionados: **{len(df_filtrado)} linhas encontradas**.")
-
+    st.info(f"⚙️ Filtros Ativos | Volumetria de dados selecionados: **{len(st.session_state['df_filtrado'])} linhas encontradas**.")
 else:
-    st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser renderizado porque a base de dados operacional está vazia ou inacessível.")
+    st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser carregado pois a base operacional está inacessível.")
 # ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
-# GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ AO LONGO DO PROCESSO
+# GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO
 # GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO
+# INICIA EM: Linha 313
 # ==============================================================================
 
 import streamlit as st
 import plotly.graph_objects as go
 
 # ------------------------------------------------------------------------------
-# SEÇÃO 1: CABEÇALHO DO BLOCO E VALIDAÇÃO DA MATRIZ FILTRADA
+# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E DECLARAÇÃO DA MATRIZ
 # ------------------------------------------------------------------------------
 st.markdown("---")
 st.markdown("## 01 Leitura do processo")
 st.caption("Evolução da turbidez e participação das captações no período selecionado.")
 
-# Validação preventiva de dados
-if 'df_filtrado' in locals() and not df_filtrado.empty:
+# Captura de forma segura a matriz filtrada do Bloco 3 via Session State
+df_graficos = st.session_state.get('df_filtrado', None)
+
+# Validação estrita do módulo de renderização
+if df_graficos is not None and not df_graficos.empty:
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ AO LONGO DO PROCESSO)
+    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ EM uT)
     # ------------------------------------------------------------------------------
     with st.container():
         st.markdown("### SÉRIE TEMPORAL")
-        st.markdown(f"#### Turbidez ao longo do processo <span style='font-size:12px; color:gray; font-weight:normal;'>| {len(df_filtrado)} registros · lacunas sem medição</span>", unsafe_allow_html=True)
+        st.markdown(f"#### Turbidez ao longo do processo <span style='font-size:12px; color:gray; font-weight:normal;'>| {len(df_graficos)} registros · valores reais medidos</span>", unsafe_allow_html=True)
 
-        # Inicialização da figura Plotly
         fig_temporal = go.Figure()
 
-        # --- CONFIGURAÇÃO DA PENA (LINHA) ---
-        # width=1.0 para linhas bem finas; shape='spline' para suavização de curvas
+        # Configurações de linhas puras, suaves (spline) e de espessura fina (width=1.0)
         config_linha_bruta   = dict(color='#FF4B4B', width=1.0, shape='spline') # Vermelho
         config_linha_tratada = dict(color='#0066CC', width=1.0, shape='spline') # Azul
         config_linha_par     = dict(color='#FF9933', width=1.0, shape='spline') # Laranja
         config_linha_impar   = dict(color='#2CA02C', width=1.0, shape='spline') # Verde
 
-        # --- CONFIGURAÇÃO DOS MARCADORES ---
-        # Tamanho pequeno (size=4) para manter o visual limpo da imagem de referência
-        config_marker = dict(size=4, opacity=0.7)
-
-        # Traço 1: Água Bruta
+        # 1. Curva de Água Bruta
         fig_temporal.add_trace(go.Scatter(
-            x=df_filtrado['DATA'], y=df_filtrado['FAIXA_TURB_BRUTA'],
-            name='Água bruta', mode='lines+markers',
-            line=config_linha_bruta, marker=config_marker, connectgaps=True
+            x=df_graficos['DATA'], y=df_graficos['ÁGUA BRUTA TURB (uT)'], 
+            name='Água bruta', mode='lines', line=config_linha_bruta, connectgaps=True
         ))
 
-        # Traço 2: Água Filtrada
+        # 2. Curva de Água Filtrada
         fig_temporal.add_trace(go.Scatter(
-            x=df_filtrado['DATA'], y=df_filtrado['FAIXA_TURB_FILT'],
-            name='Água filtrada', mode='lines+markers',
-            line=config_linha_tratada, marker=config_marker, connectgaps=True
+            x=df_graficos['DATA'], y=df_graficos['ÁGUA FILTRADA TURB (uT)'], 
+            name='Água filtrada', mode='lines', line=config_linha_tratada, connectgaps=True
         ))
 
-        # Traço 3: Clarificada Par
+        # 3. Curva do Clarificador Lado Par
         fig_temporal.add_trace(go.Scatter(
-            x=df_filtrado['DATA'], y=df_filtrado['FAIXA_TURB_CLAR_PAR'],
-            name='Clarificada Par', mode='lines+markers',
-            line=config_linha_par, marker=config_marker, connectgaps=True
+            x=df_graficos['DATA'], y=df_graficos['LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
+            name='Clarificada Par', mode='lines', line=config_linha_par, connectgaps=True
         ))
 
-        # Traço 4: Clarificada Ímpar
+        # 4. Curva do Clarificador Lado Ímpar
         fig_temporal.add_trace(go.Scatter(
-            x=df_filtrado['DATA'], y=df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'],
-            name='Clarificada Ímpar', mode='lines+markers',
-            line=config_linha_impar, marker=config_marker, connectgaps=True
+            x=df_graficos['DATA'], y=df_graficos['LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
+            name='Clarificada Ímpar', mode='lines', line=config_linha_impar, connectgaps=True
         ))
 
-        # Ajustes de Layout e Legenda Inferior (Alinhado com o design enviado)
+        # Ajustes de Layout, Grid e Posicionamento Inferior de Legendas
         fig_temporal.update_layout(
             margin=dict(l=40, r=20, t=10, b=80),
             hovermode="x unified",
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            height=400,
+            height=420,
             legend=dict(
-                orientation="h",
-                yanchor="top", y=-0.25,
-                xanchor="center", x=0.5,
-                font=dict(size=12),
-                itemclick="toggle" # Permite ligar/desligar clicando na própria legenda
+                orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5,
+                font=dict(size=12), itemclick="toggle"
             ),
-            xaxis=dict(
-                showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)",
-                tickformat="%d/%m/%Y · %H:%M", type="date"
-            ),
-            yaxis=dict(
-                showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)",
-                zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)"
-            )
+            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m/%Y · %H:%M", type="date"),
+            yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
         )
 
         st.plotly_chart(fig_temporal, use_container_width=True)
@@ -413,25 +405,22 @@ if 'df_filtrado' in locals() and not df_filtrado.empty:
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
-        # Agrupa os dados filtrados pela coluna TIPO_AGUA_BRUTA para saber a contagem/volume
-        df_composicao = df_filtrado['TIPO_AGUA_BRUTA'].value_counts().reset_index()
+        # Agrupamento matricial
+        df_composicao = df_graficos['TIPO_AGUA_BRUTA'].value_counts().reset_index()
         df_composicao.columns = ['Captação', 'Registros']
 
-        # Gráfico de Rosca Dinâmico baseado nas elevatórias ativas no filtro lateral
+        # Gráfico de Rosca
         fig_rosca = go.Figure(data=[go.Pie(
-            labels=df_composicao['Captação'],
-            values=df_composicao['Registros'],
-            hole=.5, # Efeito de rosca moderno
-            marker=dict(colors=['#0066CC', '#FF9933', '#2CA02C', '#FF4B4B']) # Paleta harmônica
+            labels=df_composicao['Captação'], values=df_composicao['Registros'], hole=.5,
+            marker=dict(colors=['#0066CC', '#FF9933', '#2CA02C', '#FF4B4B'])
         )])
 
         fig_rosca.update_layout(
-            margin=dict(l=20, r=20, t=10, b=40),
-            height=300,
+            margin=dict(l=20, r=20, t=10, b=40), height=300,
             legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
         )
 
         st.plotly_chart(fig_rosca, use_container_width=True)
 
 else:
-    st.warning("⚠️ Aguardando a seleção de critérios válidos no menu lateral (Bloco 3) para carregar os gráficos.")
+    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização das séries temporais.")
