@@ -179,7 +179,7 @@ def carregar_dados_equilibrio_quimico():
         'ÁGUA BRUTA TURB (uT)',
         'ÁGUA FILTRADA TURB (uT)',
         'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
-        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
+        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
         '%TOR',
         '%SM',
         '%BNN'
