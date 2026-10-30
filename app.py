@@ -151,49 +151,163 @@ renderizar_card_indicador("Remoção média (Lado Par)", f"{rem_par_med:.1f}", "
 renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", "%")
 # ==============================================================================
 # ==============================================================================
-# BLOCO 3: BARRA LATERAL — FILTROS RÁPIDOS E ESTRUTURAIS (LINHAS 155 A 207)
+# PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
+# BLOCO 3: CONTROLES DE SELEÇÃO OPERACIONAL E FILTROS DINÂMICOS
+# OBJETIVO: Mapear faixas de turbidez e gerenciar os limites temporais da planta
 # ==============================================================================
 
-# [INTERFACE] Cabeçalho técnico padrão da barra lateral esquerda do painel
-st.sidebar.markdown("## 🎛️ Filtros de Seleção Operacional")
-st.sidebar.write("Refine as faixas e origens de água para recalibrar o sistema.")
-st.sidebar.write("---")
+import streamlit as st
+import pandas as pd
 
-# 📅 [CRONOGRAMA] PASSO 3.1: CONTROLE DE DATAS COM MENOS PROCESSAMENTO
-# Para acelerar o app, usamos datas limpas baseadas no período de dados lançados
-st.sidebar.markdown("### 📅 Período de Análise")
-data_inicio_proc = st.sidebar.date_input("Data Inicial:", value=pd.to_datetime("2024-01-01").date(), key="dt_inicial_rapida")
-data_final_proc  = st.sidebar.date_input("Data Final:", value=pd.to_datetime("2026-12-31").date(), key="dt_final_rapida")
+# ------------------------------------------------------------------------------
+# SEÇÃO 1: CARREGAMENTO E CACHE DE DADOS (OTIMIZAÇÃO DE PERFORMANCE)
+# ------------------------------------------------------------------------------
+# @st.cache_data é crucial aqui para evitar releituras lentas do arquivo Excel
+# a cada clique ou mudança de filtro do operador.
+@st.cache_data
+def carregar_dados_equilibrio_quimico():
+    """
+    Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
+    às colunas utilizadas no escopo de filtros para aliviar a memória.
+    """
+    # Definição estrita das colunas solicitadas para o Bloco 3
+    colunas_alvo = [
+        'DATA', 
+        'FAIXA_TURB_BRUTA', 
+        'FAIXA_TURB_CLAR_PAR', 
+        'FAIXA_TURB_CLAR_ÍMPAR', 
+        'FAIXA_TURB_FILT'
+    ]
+    
+    try:
+        # Realiza a leitura focada na aba correta 'EQUILIBRIO QUIMICO COM CARGA'
+        df = pd.read_excel(
+            "seu_arquivo_eta_brasilia.xlsx", 
+            sheet_name="EQUILIBRIO QUIMICO COM CARGA",
+            usecols=colunas_alvo
+        )
+        
+        # Converte a coluna de tempo para o formato datetime do Pandas
+        df['DATA'] = pd.to_datetime(df['DATA'])
+        
+        return df
+        
+    except Exception as erro:
+        # Retorna um aviso visual amigável caso o arquivo mude de nome ou sumir
+        st.error(f" Erro crítico ao acessar 'EQUILIBRIO QUIMICO COM CARGA': {erro}")
+        return pd.DataFrame()
 
-# 🔍 [QUALIDADE] PASSO 3.2: SELETORES DROP-DOWN DIRETOS POR FAIXAS (ALTA VELOCIDADE)
-st.sidebar.markdown("### 🔍 Faixas de Qualidade (Drop-down)")
 
-# Lista de opções fixas que batem exatamente com as categorias gravadas nas colunas do seu Excel
-opcoes_faixa_padrao = ["Todas", "0 a 1 uT", "1 a 2 uT", "2 a 3 uT", "Acima de 3 uT"]
+# Execução da função de carga (Se os dados já estiverem em cache, o retorno é instantâneo)
+df_operacional = carregar_dados_equilibrio_quimico()
 
-fx_bruta    = st.sidebar.selectbox("Faixa Turbidez Bruta:", opcoes_faixa_padrao, key="dd_fx_bruta_rapido")
-fx_clari_p  = st.sidebar.selectbox("Faixa Clarificada Lado Par:", opcoes_faixa_padrao, key="dd_fx_par_rapido")
-fx_clari_i  = st.sidebar.selectbox("Faixa Clarificada Lado Ímpar:", opcoes_faixa_padrao, key="dd_fx_impar_rapido")
-fx_filtrada = st.sidebar.selectbox("Faixa Turbidez Filtrada:", ["Todas", "0 a 0.1 uT", "0.1 a 0.2 uT", "Acima de 0.2 uT"], key="dd_fx_filt_rapido")
+# ------------------------------------------------------------------------------
+# SEÇÃO 2: VERIFICAÇÃO E PROCESSAMENTO DOS LIMITES TEMPORAIS
+# ------------------------------------------------------------------------------
+if not df_operacional.empty:
+    
+    # Extrai dinamicamente a menor e a maior data registradas na planilha original
+    data_limite_inferior = df_operacional['DATA'].min().date()
+    data_limite_superior = df_operacional['DATA'].max().date()
 
-# 🚰 [ORIGEM] PASSO 3.3: MATRIZ DE COMBINAÇÃO DAS ELEVATÓRIAS
-st.sidebar.markdown("### 🚰 Matriz de Captação (Origem)")
-elevatorias_matriz = ["Torto", "Santa Maria", "Bananal"]
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 3: INTERFACE GRÁFICA (SIDEBAR) - COMPONENTES DE SELEÇÃO
+    # ------------------------------------------------------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("###  BLOQUEIO E SELEÇÃO OPERACIONAL")
+    st.sidebar.markdown("---")
 
-elevatorias_selecionadas = st.sidebar.multiselect(
-    "Combinação de Elevatórias ativas:",
-    options=elevatorias_matriz,
-    default=elevatorias_matriz,
-    key="ms_elevatorias_rapido"
-)
+    # --- SUBSEÇÃO: FILTROS CRONOLÓGICOS (DATAS DO SISTEMA) ---
+    st.sidebar.write("**Período de Análise da ETA:**")
+    
+    # Divisão em duas colunas na barra lateral para compactar o layout
+    col_data_inicial, col_data_final = st.sidebar.columns(2)
+    
+    with col_data_inicial:
+        # Define a data de início da pesquisa (Padrão: Data mínima da planilha)
+        data_selecionada_ini = st.date_input(
+            "Data Inicial", 
+            value=data_limite_inferior, 
+            min_value=data_limite_inferior, 
+            max_value=data_limite_superior,
+            format="DD/MM/YYYY"
+        )
+        
+    with col_data_final:
+        # Define a data de término da pesquisa (Padrão: Data máxima da planilha)
+        data_selecionada_fim = st.date_input(
+            "Data Final", 
+            value=data_limite_superior, 
+            min_value=data_limite_inferior, 
+            max_value=data_limite_superior,
+            format="DD/MM/YYYY"
+        )
 
-# [FILTRAGEM DE MEMÓRIA] Execução rápida em segundo plano para o DataFrame 'df_dados'
-if 'df_dados' in globals() and df_dados is not None and not df_dados.empty:
-    if fx_bruta != "Todas":    df_dados = df_dados[df_dados['FAIXA_TURB_BRUTA'] == fx_bruta]
-    if fx_clari_p != "Todas":  df_dados = df_dados[df_dados['FAIXA_TURB_CLAR_PAR'] == fx_clari_p]
-    if fx_clari_i != "Todas":  df_dados = df_dados[df_dados['FAIXA_TURB_CLAR_ÍMPAR'] == fx_clari_i]
-    if fx_filtrada != "Todas": df_dados = df_dados[df_dados['FAIXA_TURB_FILT'] == fx_filtrada]
+    st.sidebar.markdown("---")
+    st.sidebar.write("**Parâmetros de Turbidez:**")
 
-st.sidebar.write("---")
-st.sidebar.success("💡 Filtros analíticos integrados com sucesso!")
-# ==============================================================================
+    # --- SUBSEÇÃO: MAQUEAMENTO DAS FAIXAS DE TURBIDEZ ---
+    
+    # 1. Tratamento da Turbidez Bruta: Remove nulos, isola únicos e ordena em ordem alfabética/numérica
+    lista_turb_bruta = sorted(df_operacional['FAIXA_TURB_BRUTA'].dropna().unique())
+    filtro_turb_bruta = st.sidebar.selectbox(
+        "Faixa Turbidez Bruta",
+        options=["Todos"] + list(lista_turb_bruta),
+        help="Selecione a faixa operacional da água bruta na entrada da ETA."
+    )
+
+    # 2. Tratamento do Clarificador Par
+    lista_turb_clar_par = sorted(df_operacional['FAIXA_TURB_CLAR_PAR'].dropna().unique())
+    filtro_turb_clar_par = st.sidebar.selectbox(
+        "Faixa Turbidez Clarificador Par",
+        options=["Todos"] + list(lista_turb_clar_par),
+        help="Filtro específico para os decantadores/clarificadores de numeração par."
+    )
+
+    # 3. Tratamento do Clarificador Ímpar
+    lista_turb_clar_impar = sorted(df_operacional['FAIXA_TURB_CLAR_ÍMPAR'].dropna().unique())
+    filtro_turb_clar_impar = st.sidebar.selectbox(
+        "Faixa Turbidez Clarificador Ímpar",
+        options=["Todos"] + list(lista_turb_clar_impar),
+        help="Filtro específico para os decantadores/clarificadores de numeração ímpar."
+    )
+
+    # 4. Tratamento da Turbidez Filtrada (Saída dos Filtros)
+    lista_turb_filt = sorted(df_operacional['FAIXA_TURB_FILT'].dropna().unique())
+    filtro_turb_filt = st.sidebar.selectbox(
+        "Faixa Turbidez Filtrada",
+        options=["Todos"] + list(lista_turb_filt),
+        help="Mapeamento da qualidade da água após passar pela bateria de filtros."
+    )
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCAUTA)
+    # ------------------------------------------------------------------------------
+    # Primeiro estágio: Aplica o corte temporal estrito baseado nas datas selecionadas
+    df_filtrado = df_operacional[
+        (df_operacional['DATA'].dt.date >= data_selecionada_ini) & 
+        (df_operacional['DATA'].dt.date <= data_selecionada_fim)
+    ]
+
+    # Segundo estágio: Condicionais para refinar a matriz caso o operador escolha faixas específicas
+    if filtro_turb_bruta != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'] == filtro_turb_bruta]
+        
+    if filtro_turb_clar_par != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_PAR'] == filtro_turb_clar_par]
+        
+    if filtro_turb_clar_impar != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'] == filtro_turb_clar_impar]
+        
+    if filtro_turb_filt != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_FILT'] == filtro_turb_filt]
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 5: FEEDBACK OPERACIONAL (MÉTRICA DE CONTROLE DE REGISTROS)
+    # ------------------------------------------------------------------------------
+    # Uma métrica útil para o operador saber se o filtro cruzado não resultou em zero registros
+    st.info(f"⚙️ Filtros Ativos | Volumetria de dados selecionados: **{len(df_filtrado)} linhas encontradas**.")
+
+else:
+    # Aviso de contingência caso a carga inicial falhe por completo
+    st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser renderizado porque a base de dados operacional está vazia ou inacessível.")
