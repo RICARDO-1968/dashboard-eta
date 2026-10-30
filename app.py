@@ -323,6 +323,8 @@ else:
 # ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
+# GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO (DIA/MÊS)
+# GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO (%TOR, %SM, %BNN)
 # INICIA EM: Linha 313
 # ==============================================================================
 
@@ -331,111 +333,129 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # ------------------------------------------------------------------------------
-# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E RESOLUÇÃO DE CONFLITOS DE MATRIZ
+# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E DECLARAÇÃO DA MATRIZ
 # ------------------------------------------------------------------------------
 st.markdown("---")
 st.markdown("## 01 Leitura do processo")
 st.caption("Evolução da turbidez e participação das captações no período selecionado.")
 
-# Captura de forma isolada a matriz filtrada gerada no Bloco 3
-df_bruto_filt = st.session_state.get('df_filtrado', None)
+# Captura de forma segura a matriz filtrada do Bloco 3 via Session State
+df_graficos = st.session_state.get('df_filtrado', None)
 
-if df_bruto_filt is not None and not df_bruto_filt.empty:
-    
-    # RESOLUÇÃO DO CONFLITO: Cria uma cópia limpa e força a conversão das colunas
-    # Isso garante que falhas, textos vazios ou NaNs gerados no Bloco 3 não quebrem o Plotly
-    df_graficos = df_bruto_filt.copy()
-    
-    # Garante que as colunas do gráfico de linhas sejam tratadas como números puros
-    colunas_turb_reais = [
-        'ÁGUA BRUTA TURB (uT)', 
-        'ÁGUA FILTRADA TURB (uT)', 
-        'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 
-        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
-    ]
-    for col in colunas_turb_reais:
-        if col in df_graficos.columns:
-            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce')
-
-    # Garante que as colunas de participação percentual sejam tratadas como float puro
-    colunas_percentuais = ['%TOR', '%SM', '%BNN']
-    for col in colunas_percentuais:
-        if col in df_graficos.columns:
-            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce').fillna(0.0)
+# Validação estrita do módulo de renderização
+if df_graficos is not None and not df_graficos.empty:
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (O restante do gráfico segue idêntico abaixo)
+    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ EM uT VS DIA/MÊS)
     # ------------------------------------------------------------------------------
+    with st.container():
+        st.markdown("### SÉRIE TEMPORAL")
+        st.markdown(f"#### Turbidez ao longo do processo <span style='font-size:12px; color:gray; font-weight:normal;'>| {len(df_graficos)} registros · valores reais medidos</span>", unsafe_allow_html=True)
 
-        # ------------------------------------------------------------------------------
+        fig_temporal = go.Figure()
+
+        # Configurações estritas: Linhas retas, limpas (sem pontos) e finas (width=1.0)
+        config_linha_bruta   = dict(color='#FF4B4B', width=1.0) # Vermelho
+        config_linha_tratada = dict(color='#0066CC', width=1.0) # Azul
+        config_linha_par     = dict(color='#FF9933', width=1.0) # Laranja
+        config_linha_impar   = dict(color='#2CA02C', width=1.0) # Verde
+
+        # Injeção das curvas no gráfico de linhas
+        fig_temporal.add_trace(go.Scatter(
+            x=df_graficos['DATA'], y=df_graficos['ÁGUA BRUTA TURB (uT)'], 
+            name='Água bruta', mode='lines', line=config_linha_bruta, connectgaps=True
+        ))
+
+        fig_temporal.add_trace(go.Scatter(
+            x=df_graficos['DATA'], y=df_graficos['ÁGUA FILTRADA TURB (uT)'], 
+            name='Água filtrada', mode='lines', line=config_linha_tratada, connectgaps=True
+        ))
+
+        fig_temporal.add_trace(go.Scatter(
+            x=df_graficos['DATA'], y=df_graficos['LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
+            name='Clarificada Par', mode='lines', line=config_linha_par, connectgaps=True
+        ))
+
+        fig_temporal.add_trace(go.Scatter(
+            x=df_graficos['DATA'], y=df_graficos['LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
+            name='Clarificada Ímpar', mode='lines', line=config_linha_impar, connectgaps=True
+        ))
+
+        # Ajustes de Layout e Legenda Inferior Interativa
+        fig_temporal.update_layout(
+            margin=dict(l=40, r=20, t=10, b=80),
+            hovermode="x unified",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=420,
+            legend=dict(
+                orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5,
+                font=dict(size=12), itemclick="toggle"
+            ),
+            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m", type="date"),
+            yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
+        )
+
+        st.plotly_chart(fig_temporal, use_container_width=True)
+
+    # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
-    # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
     # ------------------------------------------------------------------------------
     st.markdown("---")
     with st.container():
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
-        # Processamento Estatístico Histórico: Converte as colunas estritamente para números, limpando falhas
-        try:
-            val_tor = pd.to_numeric(df_graficos['%TOR'], errors='coerce').fillna(0).mean()
-            val_sm  = pd.to_numeric(df_graficos['%SM'], errors='coerce').fillna(0).mean()
-            val_bnn = pd.to_numeric(df_graficos['%BNN'], errors='coerce').fillna(0).mean()
-        except Exception:
-            val_tor, val_sm, val_bnn = 0.0, 0.0, 0.0
+        # Extração das médias aritméticas para o período selecionado
+        media_tor = df_graficos['%TOR'].mean() if '%TOR' in df_graficos.columns else 0
+        media_sm  = df_graficos['%SM'].mean() if '%SM' in df_graficos.columns else 0
+        media_bnn = df_graficos['%BNN'].mean() if '%BNN' in df_graficos.columns else 0
 
-        # Tratamento de Escala: Se os dados na planilha forem decimais (ex: 0.35), ajusta para escala de 0 a 100
-        if val_tor <= 1.0 and val_sm <= 1.0 and val_bnn <= 1.0:
-            val_tor *= 100.0
-            val_sm  *= 100.0
-            val_bnn *= 100.0
+        # Ajuste automático de escala de percentual (Decimal para Inteiro se necessário)
+        if media_tor <= 1.0 and media_sm <= 1.0 and media_bnn <= 1.0:
+            media_tor *= 100.0
+            media_sm  *= 100.0
+            media_bnn *= 100.0
 
-        # Monta a estrutura da matriz para o Plotly receber valores numéricos puros (float)
+        # DataFrame estruturado para as barras horizontais
         df_valores_captai = pd.DataFrame({
             'Captação': ['BNN', 'SM', 'TOR'],
-            'Percentual': [float(val_bnn), float(val_sm), float(val_tor)]
+            'Percentual': [media_bnn, media_sm, media_tor]
         })
 
-        # Inicialização da figura Plotly
         fig_barras_captai = go.Figure()
 
-        # Injeção da barra horizontal limpa
         fig_barras_captai.add_trace(go.Bar(
             x=df_valores_captai['Percentual'],
             y=df_valores_captai['Captação'],
-            orientation='h',                      # Força o comportamento de barras horizontais
-            marker=dict(
-                color='#0E7490',                  # Tom azul-esverdeado institucional
-                line=dict(width=0)                # Remove bordas pretas nas barras
-            ),
-            width=0.5,                            # Espaçamento idêntico ao layout de referência
+            orientation='h',                      
+            marker=dict(color='#0E7490', line=dict(width=0)),
+            width=0.5,                            
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        # Configurações de Layout e Eixos de Escala Fixa
+        # Configurações estritas de Layout do Gráfico Horizontal (SINTAXE CORRIGIDA)
         fig_barras_captai.update_layout(
-            margin=dict(l=60, r=40, t=10, b=40),  # Margens para não cortar os rótulos das elevatórias
-            plot_bgcolor="rgba(0,0,0,0)",         # Integração com o fundo transparente do Streamlit
+            margin=dict(l=60, r=40, t=10, b=40),  
+            plot_bgcolor="rgba(0,0,0,0)",         
             paper_bgcolor="rgba(0,0,0,0)",
-            height=280,                           # Altura otimizada para o card
-            showlegend=False,                     # Remove a legenda lateral desnecessária
-            
-            # Configuração do Eixo X travado de 0% a 100% com quebras automáticas seguras
+            height=300,                           
+            showlegend=False,                     
             xaxis=dict(
-                range=[0,100],                         # Força o limite real da escala gráfica
-                dtick=25,                              # Define as linhas verticais em 0, 25, 50, 75, 100
-                ticksuffix="%",                        # Insere visualmente a marca de porcentagem
+                range=[0, 100],                   # VALORES CORRIGIDOS: Escala real travada de 0 a 100%
+                tickvals=[0, 25, 50, 75, 100],    # VALORES CORRIGIDOS: Gridlines nos quadrantes
+                ticktext=['0%', '25%', '50%', '75%', '100%'],
                 showgrid=True,
-                gridcolor="rgba(200, 200, 200, 0.15)", # Grid lines sutis de fundo
+                gridcolor="rgba(200, 200, 200, 0.15)", 
                 zeroline=False
             ),
-            
-            # Configuração do Eixo Y para destaque das siglas operacionais
             yaxis=dict(
                 showgrid=False,
                 tickfont=dict(size=14, bold=True, color='#1E293B')
             )
         )
 
-        # Renderização final na tela do painel
         st.plotly_chart(fig_barras_captai, use_container_width=True)
+
+else:
+    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização das séries temporais.")
