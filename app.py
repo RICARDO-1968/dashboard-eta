@@ -456,7 +456,7 @@ if df_graficos is not None and not df_graficos.empty:
             
             # Configuração do Eixo X travado de 0% a 100% com quebras automáticas seguras
             xaxis=dict(
-                range=,                         # Força o limite real da escala gráfica
+                range=[0,100],                         # Força o limite real da escala gráfica
                 dtick=25,                              # Define as linhas verticais em 0, 25, 50, 75, 100
                 ticksuffix="%",                        # Insere visualmente a marca de porcentagem
                 showgrid=True,
