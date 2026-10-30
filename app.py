@@ -396,7 +396,7 @@ if df_graficos is not None and not df_graficos.empty:
             yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
         )
 
-        st.plotly_chart(fig_temporal, use_container_width=True)
+        #st.plotly_chart(fig_temporal, use_container_width=True)
         st.dataframe(df_graficos)
     # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
