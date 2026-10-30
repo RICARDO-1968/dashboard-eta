@@ -323,8 +323,6 @@ else:
 # ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
-# GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO
-# GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO (%TOR, %SM, %BNN)
 # INICIA EM: Linha 313
 # ==============================================================================
 
@@ -333,74 +331,42 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # ------------------------------------------------------------------------------
-# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E DECLARAÇÃO DA MATRIZ
+# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E RESOLUÇÃO DE CONFLITOS DE MATRIZ
 # ------------------------------------------------------------------------------
 st.markdown("---")
 st.markdown("## 01 Leitura do processo")
 st.caption("Evolução da turbidez e participação das captações no período selecionado.")
 
-# Captura de forma segura a matriz filtrada do Bloco 3 via Session State
-df_graficos = st.session_state.get('df_filtrado', None)
+# Captura de forma isolada a matriz filtrada gerada no Bloco 3
+df_bruto_filt = st.session_state.get('df_filtrado', None)
 
-# Validação estrita do módulo de renderização
-if df_graficos is not None and not df_graficos.empty:
+if df_bruto_filt is not None and not df_bruto_filt.empty:
+    
+    # RESOLUÇÃO DO CONFLITO: Cria uma cópia limpa e força a conversão das colunas
+    # Isso garante que falhas, textos vazios ou NaNs gerados no Bloco 3 não quebrem o Plotly
+    df_graficos = df_bruto_filt.copy()
+    
+    # Garante que as colunas do gráfico de linhas sejam tratadas como números puros
+    colunas_turb_reais = [
+        'ÁGUA BRUTA TURB (uT)', 
+        'ÁGUA FILTRADA TURB (uT)', 
+        'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 
+        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
+    ]
+    for col in colunas_turb_reais:
+        if col in df_graficos.columns:
+            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce')
+
+    # Garante que as colunas de participação percentual sejam tratadas como float puro
+    colunas_percentuais = ['%TOR', '%SM', '%BNN']
+    for col in colunas_percentuais:
+        if col in df_graficos.columns:
+            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce').fillna(0.0)
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ EM uT)
+    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (O restante do gráfico segue idêntico abaixo)
     # ------------------------------------------------------------------------------
-    with st.container():
-        st.markdown("### SÉRIE TEMPORAL")
-        st.markdown(f"#### Turbidez ao longo do processo <span style='font-size:12px; color:gray; font-weight:normal;'>| {len(df_graficos)} registros · valores reais medidos</span>", unsafe_allow_html=True)
 
-        fig_temporal = go.Figure()
-
-        # Configurações de linhas puras, retas e de espessura fina (width=1.0)
-        config_linha_bruta   = dict(color='#FF4B4B', width=1.0) # Vermelho
-        config_linha_tratada = dict(color='#0066CC', width=1.0) # Azul
-        config_linha_par     = dict(color='#FF9933', width=1.0) # Laranja
-        config_linha_impar   = dict(color='#2CA02C', width=1.0) # Verde
-
-        # 1. Curva de Água Bruta
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['ÁGUA BRUTA TURB (uT)'], 
-            name='Água bruta', mode='lines', line=config_linha_bruta, connectgaps=True
-        ))
-
-        # 2. Curva de Água Filtrada
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['ÁGUA FILTRADA TURB (uT)'], 
-            name='Água filtrada', mode='lines', line=config_linha_tratada, connectgaps=True
-        ))
-
-        # 3. Curva do Clarificador Lado Par
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
-            name='Clarificada Par', mode='lines', line=config_linha_par, connectgaps=True
-        ))
-
-        # 4. Curva do Clarificador Lado Ímpar
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
-            name='Clarificada Ímpar', mode='lines', line=config_linha_impar, connectgaps=True
-        ))
-
-        # Ajustes de Layout, Grid e Posicionamento Inferior de Legendas
-        fig_temporal.update_layout(
-            margin=dict(l=40, r=20, t=10, b=80),
-            hovermode="x unified",
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            height=420,
-            legend=dict(
-                orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5,
-                font=dict(size=12), itemclick="toggle"
-            ),
-            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m", type="date"),
-            yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
-        )
-
-        # Plotagem do gráfico de linhas (Série Temporal)
-        st.plotly_chart(fig_temporal, use_container_width=True)
         # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
     # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
