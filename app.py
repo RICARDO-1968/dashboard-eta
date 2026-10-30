@@ -152,8 +152,8 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # ==============================================================================
 # ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
-# BLOCO 3: CONTROLES DE SELEÇÃO OPERACIONAL E FILTROS DINÂMICOS
-# OBJETIVO: Mapear faixas de turbidez, elevatórias e limites temporais da planta
+# BLOCO 3: CONTROLES DE SELEÇÃO OPERACIONAL E FILTROS DINÂMICOS (MULTISELEÇÃO)
+# OBJETIVO: Mapear faixas de turbidez, elevatórias e limites temporais de forma múltipla
 # ==============================================================================
 
 import streamlit as st
@@ -168,7 +168,6 @@ def carregar_dados_equilibrio_quimico():
     Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
     às colunas utilizadas no escopo de filtros para aliviar a memória.
     """
-    # Incluída a coluna 'TIPO_AGUA_BRUTA' solicitada para o controle das elevatórias
     colunas_alvo = [
         'DATA', 
         'TIPO_AGUA_BRUTA',
@@ -179,7 +178,7 @@ def carregar_dados_equilibrio_quimico():
     ]
     
     try:
-        # Sintaxe contínua para evitar quebras no interpretador
+        # Leitura da planilha configurada para o ambiente
         df = pd.read_excel("EQUILIBRIO QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
         
         # Converte a coluna de tempo para o formato datetime do Pandas
@@ -203,17 +202,16 @@ if not df_operacional.empty:
     data_limite_superior = df_operacional['DATA'].max().date()
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 3: INTERFACE GRÁFICA (SIDEBAR) - COMPONENTES DE SELEÇÃO
+    # SEÇÃO 3: INTERFACE GRÁFICA (SIDEBAR) - COMPONENTES DE MULTISELEÇÃO
     # ------------------------------------------------------------------------------
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🎛️ BLOQUEIO E SELEÇÃO OPERACIONAL")
-    st.sidebar.caption("💡 Use a seta no topo esquerdo para recolher ou expandir este menu.")
+    st.sidebar.caption("💡 Deixe os campos vazios para considerar TODAS as opções.")
     st.sidebar.markdown("---")
 
     # --- SUBSEÇÃO: FILTROS CRONOLÓGICOS (DATAS DO SISTEMA) ---
     st.sidebar.write("**Período de Análise da ETA:**")
     
-    # Divisão em duas colunas na barra lateral para compactar o layout
     col_data_inicial, col_data_final = st.sidebar.columns(2)
     
     with col_data_inicial:
@@ -235,71 +233,75 @@ if not df_operacional.empty:
         )
 
     st.sidebar.markdown("---")
-    st.sidebar.write("**Origem e Parâmetros de Processo:**")
+    st.sidebar.write("**Origem e Parâmetros de Processo (Múltiplo):**")
 
-    # --- NOVO CONTROLE: SELEÇÃO DE ELEVATÓRIAS (TIPO_AGUA_BRUTA) ---
+    # --- ALTERAÇÃO PARA MULTISELECT: SELEÇÃO DE ELEVATÓRIAS ---
     lista_tipo_agua = sorted(df_operacional['TIPO_AGUA_BRUTA'].dropna().unique())
-    filtro_tipo_agua = st.sidebar.selectbox(
+    filtro_tipo_agua = st.sidebar.multiselect(
         "Elevatória / Tipo de Água Bruta",
-        options=["Todos"] + list(lista_tipo_agua),
-        help="Selecione o tipo de água bruta ou elevatória de origem."
+        options=lista_tipo_agua,
+        default=[],  # Inicia vazio = Tudo selecionado por padrão
+        help="Selecione uma ou mais elevatórias de origem para filtrar os dados simultaneamente."
     )
 
-    # --- SUBSEÇÃO: MAPEAMENTO DAS FAIXAS DE TURBIDEZ ---
+    # --- ALTERAÇÃO PARA MULTISELECT: FAIXAS DE TURBIDEZ ---
     
     lista_turb_bruta = sorted(df_operacional['FAIXA_TURB_BRUTA'].dropna().unique())
-    filtro_turb_bruta = st.sidebar.selectbox(
+    filtro_turb_bruta = st.sidebar.multiselect(
         "Faixa Turbidez Bruta",
-        options=["Todos"] + list(lista_turb_bruta),
-        help="Selecione a faixa operacional da água bruta na entrada da ETA."
+        options=lista_turb_bruta,
+        default=[],
+        help="Permite cruzar múltiplas faixas operacionais da água bruta."
     )
 
     lista_turb_clar_par = sorted(df_operacional['FAIXA_TURB_CLAR_PAR'].dropna().unique())
-    filtro_turb_clar_par = st.sidebar.selectbox(
+    filtro_turb_clar_par = st.sidebar.multiselect(
         "Faixa Turbidez Clarificador Par",
-        options=["Todos"] + list(lista_turb_clar_par),
-        help="Filtro específico para os decantadores/clarificadores de numeração par."
+        options=lista_turb_clar_par,
+        default=[],
+        help="Filtro múltiplo focado nos decantadores de numeração par."
     )
 
     lista_turb_clar_impar = sorted(df_operacional['FAIXA_TURB_CLAR_ÍMPAR'].dropna().unique())
-    filtro_turb_clar_impar = st.sidebar.selectbox(
+    filtro_turb_clar_impar = st.sidebar.multiselect(
         "Faixa Turbidez Clarificador Ímpar",
-        options=["Todos"] + list(lista_turb_clar_impar),
-        help="Filtro específico para os decantadores/clarificadores de numeração ímpar."
+        options=lista_turb_clar_impar,
+        default=[],
+        help="Filtro múltiplo focado nos decantadores de numeração ímpar."
     )
 
     lista_turb_filt = sorted(df_operacional['FAIXA_TURB_FILT'].dropna().unique())
-    filtro_turb_filt = st.sidebar.selectbox(
+    filtro_turb_filt = st.sidebar.multiselect(
         "Faixa Turbidez Filtrada",
-        options=["Todos"] + list(lista_turb_filt),
-        help="Mapeamento da qualidade da água após passar pela bateria de filtros."
+        options=lista_turb_filt,
+        default=[],
+        help="Avalie simultaneamente diferentes faixas de qualidade na saída dos filtros."
     )
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA)
+    # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA COM LISTAS)
     # ------------------------------------------------------------------------------
-    # Estágio Cronológico Inicial
+    # Passo 1: Restrição temporal obrigatória
     df_filtrado = df_operacional[
         (df_operacional['DATA'].dt.date >= data_selecionada_ini) & 
         (df_operacional['DATA'].dt.date <= data_selecionada_fim)
     ]
 
-    # Filtragem Dinâmica da Nova Coluna das Elevatórias
-    if filtro_tipo_agua != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['TIPO_AGUA_BRUTA'] == filtro_tipo_agua]
+    # Passo 2: Filtragem condicional usando .isin() caso o operador tenha marcado itens
+    if filtro_tipo_agua:  # Se a lista não estiver vazia, aplica o filtro
+        df_filtrado = df_filtrado[df_filtrado['TIPO_AGUA_BRUTA'].isin(filtro_tipo_agua)]
 
-    # Filtragem das demais Faixas de Turbidez
-    if filtro_turb_bruta != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'] == filtro_turb_bruta]
+    if filtro_turb_bruta:
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'].isin(filtro_turb_bruta)]
         
-    if filtro_turb_clar_par != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_PAR'] == filtro_turb_clar_par]
+    if filtro_turb_clar_par:
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_PAR'].isin(filtro_turb_clar_par)]
         
-    if filtro_turb_clar_impar != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'] == filtro_turb_clar_impar]
+    if filtro_turb_clar_impar:
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'].isin(filtro_turb_clar_impar)]
         
-    if filtro_turb_filt != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_FILT'] == filtro_turb_filt]
+    if filtro_turb_filt:
+        df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_FILT'].isin(filtro_turb_filt)]
 
     # ------------------------------------------------------------------------------
     # SEÇÃO 5: FEEDBACK OPERACIONAL
