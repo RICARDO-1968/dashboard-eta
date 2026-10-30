@@ -401,63 +401,75 @@ if df_graficos is not None and not df_graficos.empty:
 
         # Plotagem do gráfico de linhas (Série Temporal)
         st.plotly_chart(fig_temporal, use_container_width=True)
-    # ------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
+    # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
     # ------------------------------------------------------------------------------
     st.markdown("---")
     with st.container():
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
-        # Processamento Estatístico com tratamento de valores nulos (evita quebra do Plotly)
-        media_tor = df_graficos['%TOR'].fillna(0).mean() if '%TOR' in df_graficos.columns else 0.0
-        media_sm  = df_graficos['%SM'].fillna(0).mean() if '%SM' in df_graficos.columns else 0.0
-        media_bnn = df_graficos['%BNN'].fillna(0).mean() if '%BNN' in df_graficos.columns else 0.0
+        # Processamento Estatístico Histórico: Converte as colunas estritamente para números, limpando falhas
+        try:
+            val_tor = pd.to_numeric(df_graficos['%TOR'], errors='coerce').fillna(0).mean()
+            val_sm  = pd.to_numeric(df_graficos['%SM'], errors='coerce').fillna(0).mean()
+            val_bnn = pd.to_numeric(df_graficos['%BNN'], errors='coerce').fillna(0).mean()
+        except Exception:
+            val_tor, val_sm, val_bnn = 0.0, 0.0, 0.0
 
-        # Ajuste de escala caso os dados venham em formato decimal (ex: 0.45 vira 45%)
-        if media_tor <= 1.0 and media_sm <= 1.0 and media_bnn <= 1.0:
-            media_tor *= 100.0
-            media_sm  *= 100.0
-            media_bnn *= 100.0
+        # Tratamento de Escala: Se os dados na planilha forem decimais (ex: 0.35), ajusta para escala de 0 a 100
+        if val_tor <= 1.0 and val_sm <= 1.0 and val_bnn <= 1.0:
+            val_tor *= 100.0
+            val_sm  *= 100.0
+            val_bnn *= 100.0
 
-        # Estruturação da matriz de dados para o gráfico horizontal
+        # Monta a estrutura da matriz para o Plotly receber valores numéricos puros (float)
         df_valores_captai = pd.DataFrame({
             'Captação': ['BNN', 'SM', 'TOR'],
-            'Percentual': [float(media_bnn), float(media_sm), float(media_tor)]
+            'Percentual': [float(val_bnn), float(val_sm), float(val_tor)]
         })
 
+        # Inicialização da figura Plotly
         fig_barras_captai = go.Figure()
 
+        # Injeção da barra horizontal limpa
         fig_barras_captai.add_trace(go.Bar(
             x=df_valores_captai['Percentual'],
             y=df_valores_captai['Captação'],
-            orientation='h',
-            marker=dict(color='#0E7490', line=dict(width=0)),
-            width=0.5,
+            orientation='h',                      # Força o comportamento de barras horizontais
+            marker=dict(
+                color='#0E7490',                  # Tom azul-esverdeado institucional
+                line=dict(width=0)                # Remove bordas pretas nas barras
+            ),
+            width=0.5,                            # Espaçamento idêntico ao layout de referência
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        # Configurações de Layout com sintaxe simplificada e direta
+        # Configurações de Layout e Eixos de Escala Fixa
         fig_barras_captai.update_layout(
-            margin=dict(l=60, r=40, t=10, b=40),
-            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=60, r=40, t=10, b=40),  # Margens para não cortar os rótulos das elevatórias
+            plot_bgcolor="rgba(0,0,0,0)",         # Integração com o fundo transparente do Streamlit
             paper_bgcolor="rgba(0,0,0,0)",
-            height=300,
-            showlegend=False,
+            height=280,                           # Altura otimizada para o card
+            showlegend=False,                     # Remove a legenda lateral desnecessária
+            
+            # Configuração do Eixo X travado de 0% a 100% com quebras automáticas seguras
             xaxis=dict(
-                range=[0, 100],
-                tickvals=[0, 25, 50, 75, 100],
-                ticktext=['0%', '25%', '50%', '75%', '100%'],
+                range=,                         # Força o limite real da escala gráfica
+                dtick=25,                              # Define as linhas verticais em 0, 25, 50, 75, 100
+                ticksuffix="%",                        # Insere visualmente a marca de porcentagem
                 showgrid=True,
-                gridcolor="rgba(200, 200, 200, 0.15)",
+                gridcolor="rgba(200, 200, 200, 0.15)", # Grid lines sutis de fundo
                 zeroline=False
             ),
+            
+            # Configuração do Eixo Y para destaque das siglas operacionais
             yaxis=dict(
                 showgrid=False,
                 tickfont=dict(size=14, bold=True, color='#1E293B')
             )
         )
 
+        # Renderização final na tela do painel
         st.plotly_chart(fig_barras_captai, use_container_width=True)
-
-    
