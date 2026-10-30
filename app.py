@@ -391,7 +391,8 @@ if df_graficos is not None and not df_graficos.empty:
                 orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5,
                 font=dict(size=12), itemclick="toggle"
             ),
-            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m/%Y · %H:%M", type="date"),
+            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m", type="date"),
+
             yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
         )
 
