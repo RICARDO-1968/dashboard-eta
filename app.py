@@ -324,11 +324,12 @@ else:
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
 # GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO
-# GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO
+# GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO (%TOR, %SM, %BNN)
 # INICIA EM: Linha 313
 # ==============================================================================
 
 import streamlit as st
+import pandas as pd
 import plotly.graph_objects as go
 
 # ------------------------------------------------------------------------------
@@ -353,11 +354,11 @@ if df_graficos is not None and not df_graficos.empty:
 
         fig_temporal = go.Figure()
 
-        # Configurações de linhas puras, suaves (spline) e de espessura fina (width=1.0)
-        config_linha_bruta   = dict(color='#FF4B4B', width=1.0, shape='spline') # Vermelho
-        config_linha_tratada = dict(color='#0066CC', width=1.0, shape='spline') # Azul
-        config_linha_par     = dict(color='#FF9933', width=1.0, shape='spline') # Laranja
-        config_linha_impar   = dict(color='#2CA02C', width=1.0, shape='spline') # Verde
+        # Configurações de linhas puras, retas e de espessura fina (width=1.0)
+        config_linha_bruta   = dict(color='#FF4B4B', width=1.0) # Vermelho
+        config_linha_tratada = dict(color='#0066CC', width=1.0) # Azul
+        config_linha_par     = dict(color='#FF9933', width=1.0) # Laranja
+        config_linha_impar   = dict(color='#2CA02C', width=1.0) # Verde
 
         # 1. Curva de Água Bruta
         fig_temporal.add_trace(go.Scatter(
@@ -395,19 +396,18 @@ if df_graficos is not None and not df_graficos.empty:
                 font=dict(size=12), itemclick="toggle"
             ),
             xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m", type="date"),
-
             yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
         )
 
+        # Plotagem do gráfico de linhas (Série Temporal)
         st.plotly_chart(fig_temporal, use_container_width=True)
-        st.dataframe(df_graficos)
-        # ------------------------------------------------------------------------------
+
+    # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
-    # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
+    # NOTA: Tabela eliminada para que este gráfico apareça imediatamente abaixo.
     # ------------------------------------------------------------------------------
     st.markdown("---")
     with st.container():
-        # Cabeçalho idêntico à identidade visual enviada na referência
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
@@ -436,8 +436,8 @@ if df_graficos is not None and not df_graficos.empty:
             y=df_valores_captai['Captação'],
             orientation='h',                      # Define o comportamento estrito de barras horizontais
             marker=dict(
-                color='#0E7490',                  # Tom azul-esverdeado institucional alinhado à imagem
-                line=dict(width=0)                # Remove bordas duras nas barras
+                color='#0E7490',                  # Tom azul-esverdeado institucional
+                line=dict(width=0)                # Remove bordas duras
             ),
             width=0.5,                            # Espaçamento idêntico ao da imagem de referência
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
@@ -446,15 +446,15 @@ if df_graficos is not None and not df_graficos.empty:
         # Configurações de Layout, Eixos Percentuais e Grid Lines Verticais
         fig_barras_captai.update_layout(
             margin=dict(l=60, r=40, t=10, b=40),  # Evita cortes nas siglas (TOR, SM, BNN)
-            plot_bgcolor="rgba(0,0,0,0)",         # Fundo transparente integrado ao Streamlit
+            plot_bgcolor="rgba(0,0,0,0)",         # Fundo transparente
             paper_bgcolor="rgba(0,0,0,0)",
-            height=300,                           # Altura perfeitamente alinhada à imagem
+            height=300,                           # Altura perfeitamente alinhada
             showlegend=False,                     # Dispensa legenda lateral
 
-            # Configuração Estrita do Eixo X (Escala de 0% a 100% preenchida)
+            # Configuração Estrita do Eixo X (Escala de 0% a 100%)
             xaxis=dict(
-                range=[0, 100],                   # Trava os limites do eixo para manter a referência de escala real
-                tickvals=[0, 25, 50, 75, 100],    # Gridlines exatamente nos quadrantes da imagem
+                range=[0, 100],                   # Trava os limites do eixo em 100% de escala real
+                tickvals=[0, 25, 50, 75, 100],    # Gridlines exatamente nos quadrantes
                 ticktext=['0%', '25%', '50%', '75%', '100%'],
                 showgrid=True,
                 gridcolor="rgba(200, 200, 200, 0.15)", # Linhas verticais sutis de fundo
@@ -470,3 +470,6 @@ if df_graficos is not None and not df_graficos.empty:
 
         # Plotagem final na interface do operador do painel
         st.plotly_chart(fig_barras_captai, use_container_width=True)
+
+else:
+    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização das séries temporais.")
