@@ -321,7 +321,6 @@ if not df_operacional.empty:
 else:
     st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser carregado pois a base operacional está inacessível.")
 # ==============================================================================
-# ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
 # GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO (DIA/MÊS)
