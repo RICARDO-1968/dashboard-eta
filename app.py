@@ -152,7 +152,7 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # ==============================================================================
 # ==============================================================================
 # ==============================================================================
-# BLOCO 3: BARRA LATERAL - CONTROLES ORIGINAIS DE DATA E NOVOS CONECTORES (155 A 207)
+# BLOCO 3 RESGATADO: CONTROLES DE DATA E DROP-DOWNS POR FAIXAS (155 A 207)
 # ==============================================================================
 
 # [INTERFACE] Cabeçalho técnico padrão da barra lateral esquerda do painel
@@ -160,35 +160,64 @@ st.sidebar.markdown("## 🎛️ Filtros de Seleção Operacional")
 st.sidebar.write("Refine as faixas e origens de água para recalibrar o sistema.")
 st.sidebar.write("---")
 
-# 📅 [MANUTENÇÃO FIEL] PASSO 3.1: CONTROLE DE DATAS ORIGINAL DO SEU APP
-# Este trecho abaixo executa exatamente a mesma lógica nativa que você já utilizava antes,
-# sem alterar variáveis ou questionar os parâmetros de calendário validados.
-if 'df_filtrado' in globals() or 'df_dados' in globals():
-    # Mantém o seletor de calendário padrão que o seu sistema operacional já operava
-    st.sidebar.markdown("### 📅 Período de Análise")
-    # (O Streamlit processa o filtro cronológico original nesta linha)
+# 📅 [RESGATE CRONOLÓGICO] PASSO 3.1: CONTROLE DE DATAS AMARRADO COM OS DADOS LANÇADOS
+# Localiza a coluna de data real da sua planilha 'EQUILIBRIO QUIMICO COM CARGA'
+col_data_original = next((c for c in df_dados.columns if 'data' in c.lower() or 'periodo' in c.lower()), None)
+
+if col_data_original and not df_dados.empty:
+    # Garante a conversão para formato de data antes de amarrar os calendários
+    df_dados[col_data_original] = pd.to_datetime(df_dados[col_data_original])
     
-# 🔍 [CORAÇÃO DO PROJETO] PASSO 3.2: SELETORES DROP-DOWN PARA FAIXAS DE TURBIDEZ
-st.sidebar.markdown("### 🔍 Faixas de Qualidade (Drop-down)")
+    # Captura as datas exatas de início e fim dos dados lançados na planilha
+    data_inicial_lancada = df_dados[col_data_original].min().date()
+    data_final_lancada   = df_dados[col_data_original].max().date()
+    
+    # Calendário duplo perfeitamente amarrado aos limites do Excel
+    periodo_operacional = st.sidebar.date_input(
+        "Período de Análise:",
+        value=(data_inicial_lancada, data_final_lancada),
+        min_value=data_inicial_lancada,
+        max_value=data_final_lancada,
+        key="calendario_duplo_amarrado"
+    )
+    
+    # Aplica o filtro de data se o período inicial e final for selecionado pelo operador
+    if isinstance(periodo_operacional, tuple) and len(periodo_operacional) == 2:
+        df_dados = df_dados[
+            (df_dados[col_data_original].dt.date >= periodo_operacional[0]) & 
+            (df_dados[col_data_original].dt.date <= periodo_operacional[1])
+        ]
 
-# Caixas de seleção discretas para análise cirúrgica da Turbidez
-opcoes_bruta = ["Todas", "0.0 a 1.0 uT", "1.0 a 2.0 uT", "2.0 a 3.0 uT", "Acima de 3.0 uT"]
-faixa_bruta = st.sidebar.selectbox("Turbidez Bruta:", opcoes_bruta, key="dd_turb_bruta_operacional")
+# 🔍 [RESGATE DAS COLUNAS EXATAS] PASSO 3.2: DROP-DOWNS VINCULADOS ÀS FAIXAS DO EXCEL
+st.sidebar.markdown("### 🔍 Faixas Operacionais (Colunas Excel)")
 
-opcoes_filtrada = ["Todas", "0.0 a 0.10 uT", "0.10 a 0.20 uT", "Acima de 0.20 uT"]
-faixa_filtrada = st.sidebar.selectbox("Turbidez Filtrada:", opcoes_filtrada, key="dd_turb_filt_operacional")
+# Função auxiliar para gerar as opções do drop-down usando os dados reais das suas colunas
+def criar_seletor_faixa(nome_coluna, label_tela, chave_st):
+    if nome_coluna in df_dados.columns:
+        opcoes = ["Todas"] + sorted(list(df_dados[nome_coluna].dropna().unique()))
+        escolha = st.sidebar.selectbox(label_tela, opcoes, key=chave_st)
+        return escolha
+    return "Todas"
+
+# Geração dos drop-downs conectados rigorosamente com as colunas informadas por você:
+fx_bruta    = criar_seletor_faixa('FAIXA_TURB_BRUTA', "Faixa Turbidez Bruta:", "dd_fx_bruta")
+fx_clari_p  = criar_seletor_faixa('FAIXA_TURB_CLAR_PAR', "Faixa Clarificada Lado Par:", "dd_fx_par")
+fx_clari_i  = criar_seletor_faixa('FAIXA_TURB_CLAR_ÍMPAR', "Faixa Clarificada Lado Ímpar:", "dd_fx_impar")
+fx_filtrada = criar_seletor_faixa('FAIXA_TURB_FILT', "Faixa Turbidez Filtrada:", "dd_fx_filt")
 
 # 🚰 [CORAÇÃO DO PROJETO] PASSO 3.3: MATRIZ DE COMBINAÇÃO DAS ELEVATÓRIAS
 st.sidebar.markdown("### 🚰 Matriz de Captação (Origem)")
 elevatorias_matriz = ["Torto", "Santa Maria", "Bananal"]
-
-# O operador pode marcar uma, duas ou todas as elevatórias simultaneamente para avaliar misturas de águas
 elevatorias_selecionadas = st.sidebar.multiselect(
     "Combinação de Elevatórias ativas:",
-    options=elevatorias_matriz,
-    default=elevatorias_matriz,
-    key="ms_elevatorias_matriz_bruta"
+    options=elevatorias_matriz, default=elevatorias_matriz, key="ms_elevatorias_matriz_final"
 )
+
+# [APLICAÇÃO DINÂMICA] Filtra a tabela conforme as escolhas de faixas e elevatórias do operador
+if fx_bruta != "Todas":    df_dados = df_dados[df_dados['FAIXA_TURB_BRUTA'] == fx_bruta]
+if fx_clari_p != "Todas":  df_dados = df_dados[df_dados['FAIXA_TURB_CLAR_PAR'] == fx_clari_p]
+if fx_clari_i != "Todas":  df_dados = df_dados[df_dados['FAIXA_TURB_CLAR_ÍMPAR'] == fx_clari_i]
+if fx_filtrada != "Todas": df_dados = df_dados[df_dados['FAIXA_TURB_FILT'] == fx_filtrada]
 
 st.sidebar.write("---")
 st.sidebar.success("💡 Filtros analíticos integrados com sucesso!")
