@@ -160,37 +160,14 @@ import streamlit as st
 import pandas as pd
 
 # ------------------------------------------------------------------------------
-# SEÇÃO 0: CONFIGURAÇÃO DE LAYOUT DA PÁGINA (CONTROLE DO FILTRO LATERAL)
-# ------------------------------------------------------------------------------
-# NOTA: O parâmetro 'initial_sidebar_state' define como o filtro se comporta ao abrir.
-# Opções disponíveis:
-#   - "expanded" : Mantém a barra lateral de filtros aberta por padrão.
-#   - "collapsed": Mantém a barra recolhida (oculta), maximizando o espaço do gráfico.
-#   - "auto"     : O Streamlit decide baseado no tamanho da tela do operador (Mobile/PC).
-st.set_page_config(
-    page_title="Dashboard ETA Brasília",
-    layout="wide",
-    initial_sidebar_state="expanded"  # Garante que o operador veja os filtros logo de início
-)
-
-# ------------------------------------------------------------------------------
 # SEÇÃO 1: CARREGAMENTO E CACHE DE DADOS (OTIMIZAÇÃO DE PERFORMANCE)
 # ------------------------------------------------------------------------------
-# @st.cache_data é crucial aqui para evitar releituras lentas do arquivo Excel
-# a cada clique ou mudança de filtro do operador.
 @st.cache_data
-exato da aba dentro do arquivo (sheet_name)
-        df = pd.read_excel(
-            "EQUILIBRIO_QUIMICO.xlsx", 
-            sheet_name="EQUILIBRIO QUIMICO COM CARGA",
-            usecols=colunas_alvo
-        )
-#pd.read_excel("EQUILIBRIO QUIMICO.xlsx",sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
+def carregar_dados_equilibrio_quimico():
     """
     Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
     às colunas utilizadas no escopo de filtros para aliviar a memória.
     """
-    # Definição estrita das colunas solicitadas para o Bloco 3
     colunas_alvo = [
         'DATA', 
         'FAIXA_TURB_BRUTA', 
@@ -200,25 +177,18 @@ exato da aba dentro do arquivo (sheet_name)
     ]
     
     try:
-        # Realiza a leitura focada na aba correta 'EQUILIBRIO QUIMICO COM CARGA'
-        df = pd.read_excel(
-            "seu_arquivo_eta_brasilia.xlsx", 
-            sheet_name="EQUILIBRIO QUIMICO COM CARGA",
-            usecols=colunas_alvo
-        )
+        # Sintaxe limpa em uma única linha para evitar quebras incorretas no interpretador
+        df = pd.read_excel("EQUILIBRIO_QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
         
         # Converte a coluna de tempo para o formato datetime do Pandas
         df['DATA'] = pd.to_datetime(df['DATA'])
-        
         return df
         
     except Exception as erro:
-        # Retorna um aviso visual amigável caso o arquivo mude de nome ou sumir
-        st.error(f"❌ Erro crítico ao acessar 'EQUILIBRIO QUIMICO COM CARGA': {erro}")
+        st.error(f"❌ Erro ao acessar o arquivo 'EQUILIBRIO_QUIMICO.xlsx': {erro}")
         return pd.DataFrame()
 
-
-# Execução da função de carga (Se os dados já estiverem em cache, o retorno é instantâneo)
+# Execução da função de carga
 df_operacional = carregar_dados_equilibrio_quimico()
 
 # ------------------------------------------------------------------------------
@@ -245,7 +215,6 @@ if not df_operacional.empty:
     col_data_inicial, col_data_final = st.sidebar.columns(2)
     
     with col_data_inicial:
-        # Define a data de início da pesquisa (Padrão: Data mínima da planilha)
         data_selecionada_ini = st.date_input(
             "Data Inicial", 
             value=data_limite_inferior, 
@@ -255,7 +224,6 @@ if not df_operacional.empty:
         )
         
     with col_data_final:
-        # Define a data de término da pesquisa (Padrão: Data máxima da planilha)
         data_selecionada_fim = st.date_input(
             "Data Final", 
             value=data_limite_superior, 
@@ -269,7 +237,6 @@ if not df_operacional.empty:
 
     # --- SUBSEÇÃO: MAPEAMENTO DAS FAIXAS DE TURBIDEZ ---
     
-    # 1. Tratamento da Turbidez Bruta: Remove nulos, isola únicos e ordena em ordem alfabética/numérica
     lista_turb_bruta = sorted(df_operacional['FAIXA_TURB_BRUTA'].dropna().unique())
     filtro_turb_bruta = st.sidebar.selectbox(
         "Faixa Turbidez Bruta",
@@ -277,7 +244,6 @@ if not df_operacional.empty:
         help="Selecione a faixa operacional da água bruta na entrada da ETA."
     )
 
-    # 2. Tratamento do Clarificador Par
     lista_turb_clar_par = sorted(df_operacional['FAIXA_TURB_CLAR_PAR'].dropna().unique())
     filtro_turb_clar_par = st.sidebar.selectbox(
         "Faixa Turbidez Clarificador Par",
@@ -285,7 +251,6 @@ if not df_operacional.empty:
         help="Filtro específico para os decantadores/clarificadores de numeração par."
     )
 
-    # 3. Tratamento do Clarificador Ímpar
     lista_turb_clar_impar = sorted(df_operacional['FAIXA_TURB_CLAR_ÍMPAR'].dropna().unique())
     filtro_turb_clar_impar = st.sidebar.selectbox(
         "Faixa Turbidez Clarificador Ímpar",
@@ -293,7 +258,6 @@ if not df_operacional.empty:
         help="Filtro específico para os decantadores/clarificadores de numeração ímpar."
     )
 
-    # 4. Tratamento da Turbidez Filtrada (Saída dos Filtros)
     lista_turb_filt = sorted(df_operacional['FAIXA_TURB_FILT'].dropna().unique())
     filtro_turb_filt = st.sidebar.selectbox(
         "Faixa Turbidez Filtrada",
@@ -304,13 +268,11 @@ if not df_operacional.empty:
     # ------------------------------------------------------------------------------
     # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA)
     # ------------------------------------------------------------------------------
-    # Primeiro estágio: Aplica o corte temporal estrito baseado nas datas selecionadas
     df_filtrado = df_operacional[
         (df_operacional['DATA'].dt.date >= data_selecionada_ini) & 
         (df_operacional['DATA'].dt.date <= data_selecionada_fim)
     ]
 
-    # Segundo estágio: Condicionais para refinar a matriz caso o operador escolha faixas específicas
     if filtro_turb_bruta != "Todos":
         df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'] == filtro_turb_bruta]
         
@@ -324,7 +286,7 @@ if not df_operacional.empty:
         df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_FILT'] == filtro_turb_filt]
 
     # ------------------------------------------------------------------------------
-    # SEÇÃO 5: FEEDBACK OPERACIONAL (MÉTRICA DE CONTROLE DE REGISTROS)
+    # SEÇÃO 5: FEEDBACK OPERACIONAL
     # ------------------------------------------------------------------------------
     st.info(f"⚙️ Filtros Ativos | Volumetria de dados selecionados: **{len(df_filtrado)} linhas encontradas**.")
 
