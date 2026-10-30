@@ -402,3 +402,75 @@ def renderizar_grafico_bloco4(df_bruto):
     fig.update_traces(width=0.55, marker_line_width=0)
 
     return fig
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+
+@st.cache_data
+def preparar_dados_bloco4(df_bruto):
+    colunas_interesse = ["%TOR", "%SM", "%BNN"]
+    df_filtrado = df_bruto[colunas_interesse]
+
+    df_medias = df_filtrado.mean().reset_index()
+    df_medias.columns = ["captacao", "porcentagem"]
+    df_medias["porcentagem"] = df_medias["porcentagem"] / 100
+    df_medias["captacao"] = df_medias["captacao"].str.replace("%", "")
+    df_medias = df_medias.sort_values(by="porcentagem", ascending=True)
+
+    return df_medias
+
+
+def renderizar_grafico_bloco4(df_bruto):
+    df_grafico = preparar_dados_bloco4(df_bruto)
+
+    cores_customizadas = {
+        "TOR": "#1A739F",  # Azul-petróleo
+        "SM": "#168B6E",  # Verde
+        "BNN": "#D9931E",  # Âmbar/Laranja
+    }
+
+    fig = px.bar(
+        df_grafico,
+        x="porcentagem",
+        y="captacao",
+        orientation="h",
+        color="captacao",
+        color_discrete_map=cores_customizadas,
+        title="Participação agregada por captação",
+    )
+
+    fig.update_layout(
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(
+            tickformat=".0%",
+            range=[0, 1],
+            gridcolor="#E2E8F0",
+            title=dict(
+                text="% do volume observado", font=dict(size=12, color="#64748B")
+            ),
+            side="top",
+        ),
+        yaxis=dict(
+            title_text=None,
+            tickfont=dict(size=14, color="#1E293B", weight="bold"),
+        ),
+        title_font=dict(size=18, color="#1E293B", family="Arial"),
+        margin=dict(l=60, r=40, t=80, b=20),
+        height=380,
+    )
+
+    fig.update_traces(width=0.55, marker_line_width=0)
+
+    return fig
+
+
+# ==============================================================================
+# ATENÇÃO: É esta linha abaixo que faz o gráfico efetivamente aparecer na tela!
+# Certifique-se de que ela está sendo chamada passando o seu DataFrame (ex: df)
+# ==============================================================================
+
+# Se o seu DataFrame principal se chamar 'df', descomente a linha abaixo para renderizar:
+# st.plotly_chart(renderizar_grafico_bloco4(df), use_container_width=True)
