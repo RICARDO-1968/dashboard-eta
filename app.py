@@ -327,154 +327,78 @@ else:
 # GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO (DIA/MÊS)
 # GRÁFICO 4.2: COMPOSIÇÃO - PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO (%TOR, %SM, %BNN)
 # INICIA EM: Linha 313
-# ==============================================================================
-
-import streamlit as st
+# ================
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.express as px
+import streamlit as st  # Se usar Dash, mude para os componentes equivalentes
 
-# ------------------------------------------------------------------------------
-# SEÇÃO 1: CABEÇALHO DO BLOCO 4 E DECLARAÇÃO DA MATRIZ
-# ------------------------------------------------------------------------------
-st.markdown("---")
-st.markdown("## 01 Leitura do processo")
-st.caption("Evolução da turbidez e participação das captações no período selecionado.")
 
-# Captura de forma segura a matriz filtrada do Bloco 3 via Session State
-df_bruto_filt = st.session_state.get('df_filtrado', None)
+@st.cache_data  # Mantém o cálculo em cache para eliminar a lentidão anterior
+def preparar_dados_bloco4(df_bruto):
+    colunas_interesse = ["%TOR", "%SM", "%BNN"]
+    df_filtrado = df_bruto[colunas_interesse]
 
-# Validação estrita do módulo de renderização
-if df_bruto_filt is not None and not df_bruto_filt.empty:
+    # Calcula a média de forma vetorizada
+    df_medias = df_filtrado.mean().reset_index()
+    df_medias.columns = ["captacao", "porcentagem"]
 
-    # ------------------------------------------------------------------------------
-    # SEÇÃO 1.5: HIGIENIZAÇÃO ABSOLUTA DE DADOS (RESOLUÇÃO DO VALUEERROR)
-    # ------------------------------------------------------------------------------
-    # Criamos uma cópia limpa para garantir que nenhuma sujeira quebre o Plotly
-    df_graficos = df_bruto_filt.copy()
+    # Ajusta os valores inteiros (ex: 40.0 -> 0.40) para o formato percentual do Plotly
+    df_medias["porcentagem"] = df_medias["porcentagem"] / 100
 
-    # Força todas as colunas operacionais a virarem números, limpando textos ou NaNs
-    colunas_para_limpar = [
-        'ÁGUA BRUTA TURB (uT)', 'ÁGUA FILTRADA TURB (uT)',
-        'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 
-        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
-        '%TOR', '%SM', '%BNN'
-    ]
-    for col in colunas_para_limpar:
-        if col in df_graficos.columns:
-            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce').fillna(0.0)
+    # Limpa os nomes tirando o caractere '%' para exibir no eixo Y ('TOR', 'SM', 'BNN')
+    df_medias["captacao"] = df_medias["captacao"].str.replace("%", "")
 
-    # ------------------------------------------------------------------------------
-    # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ EM uT VS DIA/MÊS)
-    # ------------------------------------------------------------------------------
-    with st.container():
-        st.markdown("### SÉRIE TEMPORAL")
-        st.markdown(f"#### Turbidez ao longo do processo <span style='font-size:12px; color:gray; font-weight:normal;'>| {len(df_graficos)} registros · valores reais medidos</span>", unsafe_allow_html=True)
+    # Ordena de forma ascendente para que a maior barra fique no topo do gráfico horizontal
+    df_medias = df_medias.sort_values(by="porcentagem", ascending=True)
 
-        fig_temporal = go.Figure()
+    return df_medias
 
-        config_linha_bruta   = dict(color='#FF4B4B', width=1.0) # Vermelho
-        config_linha_tratada = dict(color='#0066CC', width=1.0) # Azul
-        config_linha_par     = dict(color='#FF9933', width=1.0) # Laranja
-        config_linha_impar   = dict(color='#2CA02C', width=1.0) # Verde
 
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['ÁGUA BRUTA TURB (uT)'], 
-            name='Água bruta', mode='lines', line=config_linha_bruta, connectgaps=True
-        ))
+def renderizar_grafico_bloco4(df_bruto):
+    df_grafico = preparar_dados_bloco4(df_bruto)
 
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['ÁGUA FILTRADA TURB (uT)'], 
-            name='Água filtrada', mode='lines', line=config_linha_tratada, connectgaps=True
-        ))
+    # Cores exatas extraídas da sua imagem de exemplo
+    cores_customizadas = {
+        "TOR": "#1A739F",  # Azul-petróleo
+        "SM": "#168B6E",   # Verde
+        "BNN": "#D9931E"   # Âmbar/Laranja
+    }
 
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
-            name='Clarificada Par', mode='lines', line=config_linha_par, connectgaps=True
-        ))
+    fig = px.bar(
+        df_grafico,
+        x="porcentagem",
+        y="captacao",
+        orientation="h",
+        color="captacao",
+        color_discrete_map=cores_customizadas,
+        title="Participação agregada por captação",
+    )
 
-        fig_temporal.add_trace(go.Scatter(
-            x=df_graficos['DATA'], y=df_graficos['LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'], 
-            name='Clarificada Ímpar', mode='lines', line=config_linha_impar, connectgaps=True
-        ))
-
-        fig_temporal.update_layout(
-            margin=dict(l=40, r=20, t=10, b=80),
-            hovermode="x unified",
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            height=420,
-            legend=dict(
-                orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5,
-                font=dict(size=12), itemclick="toggle"
+    # Configuração de layout limpo, idêntico ao modelo fornecido
+    fig.update_layout(
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(
+            tickformat=".0%",  # Mostra 0%, 25%, 50%, 75%, 100%
+            range=[0, 1],      # Fixa o limite de 0% a 100%
+            gridcolor="#E2E8F0",  # Linhas de grade verticais discretas
+            title=dict(
+                text="% do volume observado",
+                font=dict(size=12, color="#64748B")
             ),
-            xaxis=dict(showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", tickformat="%d/%m", type="date"),
-            yaxis=dict(title="Turbidez (uT)", showgrid=True, gridcolor="rgba(200, 200, 200, 0.15)", zeroline=True, zerolinecolor="rgba(200, 200, 200, 0.3)")
-        )
+            side="top"  # Coloca a legenda de % no topo igual à imagem
+        ),
+        yaxis=dict(
+            title_text=None,
+            tickfont=dict(size=14, color="#1E293B", weight="bold")
+        ),
+        title_font=dict(size=18, color="#1E293B", family="Arial"),
+        margin=dict(l=60, r=40, t=80, b=20),
+        height=380,
+    )
 
-        st.plotly_chart(fig_temporal, use_container_width=True)
+    # Ajusta a espessura das barras e arredonda os cantos (se suportado pelo ambiente)
+    fig.update_traces(width=0.55, marker_line_width=0)
 
-    # ------------------------------------------------------------------------------
-    # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
-    # ------------------------------------------------------------------------------
-    st.markdown("---")
-    with st.container():
-        st.markdown("### COMPOSIÇÃO")
-        st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
-
-        # Como os dados foram limpos na Seção 1.5, o cálculo da média agora é 100% seguro
-        media_tor = float(df_graficos['%TOR'].mean())
-        media_sm  = float(df_graficos['%SM'].mean())
-        media_bnn = float(df_graficos['%BNN'].mean())
-
-        # Ajuste automático de escala de percentual (Decimal para Inteiro)
-        if media_tor <= 1.0 and media_sm <= 1.0 and media_bnn <= 1.0:
-            media_tor *= 100.0
-            media_sm  *= 100.0
-            media_bnn *= 100.0
-
-        df_valores_captai = pd.DataFrame({
-            'Captação': ['BNN', 'SM', 'TOR'],
-            'Percentual': [media_bnn, media_sm, media_tor]
-        })
-
-        fig_barras_captai = go.Figure()
-
-        fig_barras_captai.add_trace(go.Bar(
-            x=df_valores_captai['Percentual'],
-            y=df_valores_captai['Captação'],
-            orientation='h',                      
-            marker=dict(color='#0E7490', line=dict(width=0)),
-            width=0.5,                            
-            hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
-        ))
-
-                # --- ALTERAÇÃO CIRÚRGICA DE SEGURANÇA OPERACIONAL ---
-        # Só renderiza o gráfico se a soma das participações for maior que zero, evitando o ValueError
-        if df_valores_captai['Percentual'].sum() > 0:
-            
-            fig_barras_captai.update_layout(
-                margin=dict(l=60, r=40, t=10, b=40),  
-                plot_bgcolor="rgba(0,0,0,0)",         
-                paper_bgcolor="rgba(0,0,0,0)",
-                height=300,                           
-                showlegend=False,                     
-                xaxis=dict(
-                    range=[0, 100],                   
-                    tickvals=[0, 25, 50, 75, 100],    
-                    ticktext=['0%', '25%', '50%', '75%', '100%'],
-                    showgrid=True,
-                    gridcolor="rgba(200, 200, 200, 0.15)", 
-                    zeroline=False
-                ),
-                yaxis=dict(
-                    showgrid=False,
-                    tickfont=dict(size=14, bold=True, color='#1E293B')
-                )
-            )
-            
-            # Renderiza o gráfico com segurança
-            st.plotly_chart(fig_barras_captai, use_container_width=True)
-            
-        else:
-            # Mensagem sutil de contingência caso os filtros zerem a captação
-            st.info("ℹ️ Nenhuma captação ativa registrada para o período ou filtros selecionados.")
+    return fig
