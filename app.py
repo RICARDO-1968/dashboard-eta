@@ -180,6 +180,9 @@ def carregar_dados_equilibrio_quimico():
         'ÁGUA FILTRADA TURB (uT)',
         'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
         'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
+        '%TOR',
+        '%SM',
+        '%BNN', 
     ]
     
     try:
@@ -399,29 +402,72 @@ if df_graficos is not None and not df_graficos.empty:
         st.plotly_chart(fig_temporal, use_container_width=True)
         st.dataframe(df_graficos)
     # ------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
+    # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
     # ------------------------------------------------------------------------------
     st.markdown("---")
     with st.container():
+        # Cabeçalho idêntico à identidade visual enviada na referência
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
-        # Agrupamento matricial
-        df_composicao = df_graficos['TIPO_AGUA_BRUTA'].value_counts().reset_index()
-        df_composicao.columns = ['Captação', 'Registros']
+        # Processamento Estatístico: Extrai a média de participação das colunas no período filtrado
+        media_tor = df_graficos['%TOR'].mean() if '%TOR' in df_graficos.columns else 0
+        media_sm  = df_graficos['%SM'].mean() if '%SM' in df_graficos.columns else 0
+        media_bnn = df_graficos['%BNN'].mean() if '%BNN' in df_graficos.columns else 0
 
-        # Gráfico de Rosca
-        fig_rosca = go.Figure(data=[go.Pie(
-            labels=df_composicao['Captação'], values=df_composicao['Registros'], hole=.5,
-            marker=dict(colors=['#0066CC', '#FF9933', '#2CA02C', '#FF4B4B'])
-        )])
+        # Caso sua planilha armazene em decimal (ex: 0.40 para 40%), converte para escala 0-100
+        if media_tor <= 1.0 and media_sm <= 1.0 and media_bnn <= 1.0:
+            media_tor *= 100
+            media_sm  *= 100
+            media_bnn *= 100
 
-        fig_rosca.update_layout(
-            margin=dict(l=20, r=20, t=10, b=40), height=300,
-            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+        # Monta o DataFrame estruturado para plotagem vertical reversa (menor para o maior na construção)
+        df_valores_captai = pd.DataFrame({
+            'Captação': ['BNN', 'SM', 'TOR'],
+            'Percentual': [media_bnn, media_sm, media_tor]
+        })
+
+        # Engenharia de Renderização do Gráfico de Barras Horizontais (Plotly Engine)
+        fig_barras_captai = go.Figure()
+
+        fig_barras_captai.add_trace(go.Bar(
+            x=df_valores_captai['Percentual'],
+            y=df_valores_captai['Captação'],
+            orientation='h',                      # Define o comportamento estrito de barras horizontais
+            marker=dict(
+                color='#0E7490',                  # Tom azul-esverdeado institucional alinhado à imagem
+                line=dict(width=0)                # Remove bordas duras nas barras
+            ),
+            width=0.5,                            # Espaçamento idêntico ao da imagem de referência
+            hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
+        ))
+
+        # Configurações de Layout, Eixos Percentuais e Grid Lines Verticais
+        fig_barras_captai.update_layout(
+            margin=dict(l=60, r=40, t=10, b=40),  # Evita cortes nas siglas (TOR, SM, BNN)
+            plot_bgcolor="rgba(0,0,0,0)",         # Fundo transparente integrado ao Streamlit
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=300,                           # Altura perfeitamente alinhada à imagem
+            showlegend=False,                     # Dispensa legenda lateral
+
+            # Configuração Estrita do Eixo X (Escala de 0% a 100%)
+            xaxis=dict(
+                range=[0, 100],                   # Trava os limites do eixo para manter a referência de escala real
+                tickvals=[0, 25, 50, 75, 100],    # Gridlines exatamente nos quadrantes da imagem
+                ticktext=['0%', '25%', '50%', '75%', '100%'],
+                showgrid=True,
+                gridcolor="rgba(200, 200, 200, 0.15)", # Linhas verticais sutis de fundo
+                zeroline=False
+            ),
+
+            # Configuração do Eixo Y (Rótulos das Captações)
+            yaxis=dict(
+                showgrid=False,
+                tickfont=dict(size=14, bold=True, color='#1E293B')
+            )
         )
 
-        st.plotly_chart(fig_rosca, use_container_width=True)
-
-else:
-    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização das séries temporais.")
+        # Plotagem final na interface do operador do painel
+        st.plotly_chart(fig_barras_captai, use_container_width=True)
