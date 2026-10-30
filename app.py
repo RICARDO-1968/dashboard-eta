@@ -310,3 +310,161 @@ if not df_operacional.empty:
 
 else:
     st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser renderizado porque a base de dados operacional está vazia ou inacessível.")
+# ==============================================================================
+# PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
+# BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
+# GRÁFICO 4.1: SÉRIE TEMPORAL OPERACIONAL - DINÂMICA DE TURBIDEZ VS PERÍODO
+# OBJETIVO: Avaliar curvas suavizadas de turbidez com seletores de visibilidade
+# ==============================================================================
+
+import streamlit as st
+import plotly.graph_objects as go
+
+# ------------------------------------------------------------------------------
+# SEÇÃO 1: CABEÇALHO DO BLOCO E VALIDAÇÃO DA MATRIZ FILTRADA
+# ------------------------------------------------------------------------------
+st.markdown("---")
+st.markdown("## 📊 Bloco 4: Monitoramento Dinâmico de Processo")
+st.markdown("### Histórico de Turbidez e Estabilidade das Etapas de Tratamento")
+
+# Validação preventiva: Só processa o gráfico se o Bloco 3 gerou dados válidos
+if 'df_filtrado' in locals() and not df_filtrado.empty:
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 2: CONTROLES DE PRESENÇA / AUSÊNCIA DAS CURVAS (CHECKBOXES)
+    # ------------------------------------------------------------------------------
+    # Renderiza seletores lado a lado logo acima do gráfico para o operador ligar/desligar curvas
+    st.markdown("**Selecione as variáveis para exibição no gráfico:**")
+    col_cb1, col_cb2, col_cb3, col_cb4 = st.columns(4)
+    
+    with col_cb1:
+        exibir_bruta = st.checkbox("Água Bruta", value=True, help="Exibir ou ocultar curva de entrada.")
+    with col_cb2:
+        exibir_filtrada = st.checkbox("Água Filtrada (Tratada)", value=True, help="Exibir ou ocultar curva de saída dos filtros.")
+    with col_cb3:
+        exibir_clar_par = st.checkbox("Clarificada Par", value=True, help="Exibir ou ocultar decantadores pares.")
+    with col_cb4:
+        exibir_clar_impar = st.checkbox("Clarificada Ímpar", value=True, help="Exibir ou ocultar decantadores ímpares.")
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 3: ENGENHARIA DE RENDERIZAÇÃO DO GRÁFICO (PLOTLY ENGINE)
+    # ------------------------------------------------------------------------------
+    # Cria a figura base do Plotly
+    fig_turbidez = go.Figure()
+
+    # --- CURVA 1: ÁGUA BRUTA (Cor: Vermelha) ---
+    if exibir_bruta:
+        fig_turbidez.add_trace(
+            go.Scatter(
+                x=df_filtrado['DATA'],
+                y=df_filtrado['FAIXA_TURB_BRUTA'],
+                name='Turbidez Água Bruta',
+                mode='lines',
+                line=dict(
+                    color='#FF4B4B',      # Vermelho Operacional
+                    width=1.5,            # Espessura Fina para detalhar variações bruscas
+                    shape='spline'        # Suavização da linha (Smooth Line)
+                ),
+                connectgaps=True          # Conecta pontos caso haja alguma falha pontual de registro
+            )
+        )
+
+    # --- CURVA 2: ÁGUA FILTRADA / TRATADA (Cor: Azul) ---
+    if exibir_filtrada:
+        fig_turbidez.add_trace(
+            go.Scatter(
+                x=df_filtrado['DATA'],
+                y=df_filtrado['FAIXA_TURB_FILT'],
+                name='Turbidez Água Filtrada',
+                mode='lines',
+                line=dict(
+                    color='#0066CC',      # Azul Padrão Água Tratada
+                    width=1.5,            # Espessura Fina
+                    shape='spline'        # Suavização da linha
+                ),
+                connectgaps=True
+            )
+        )
+
+    # --- CURVA 3: CLARIFICADA PAR (Cor: Laranja) ---
+    if exibir_clar_par:
+        fig_turbidez.add_trace(
+            go.Scatter(
+                x=df_filtrado['DATA'],
+                y=df_filtrado['FAIXA_TURB_CLAR_PAR'],
+                name='Turbidez Clarificador Par',
+                mode='lines',
+                line=dict(
+                    color='#FF9933',      # Laranja Alerta
+                    width=1.5,            # Espessura Fina
+                    shape='spline'        # Suavização da linha
+                ),
+                connectgaps=True
+            )
+        )
+
+    # --- CURVA 4: CLARIFICADA ÍMPAR (Cor: Verde) ---
+    if exibir_clar_impar:
+        fig_turbidez.add_trace(
+            go.Scatter(
+                x=df_filtrado['DATA'],
+                y=df_filtrado['FAIXA_TURB_CLAR_ÍMPAR'],
+                name='Turbidez Clarificador Ímpar',
+                mode='lines',
+                line=dict(
+                    color='#2CA02C',      # Verde Processo
+                    width=1.5,            # Espessura Fina
+                    shape='spline'        # Suavização da linha
+                ),
+                connectgaps=True
+            )
+        )
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 4: CONFIGURAÇÃO DE LAYOUT, EIXOS E LEGENDA INFERIOR
+    # ------------------------------------------------------------------------------
+    fig_turbidez.update_layout(
+        # Remove margens excessivas para aproveitar toda a área útil do dashboard
+        margin=dict(l=50, r=30, t=20, b=80),
+        hovermode="x unified",            # Cruza os valores de todas as linhas ao passar o mouse no eixo X
+        plot_bgcolor="rgba(0,0,0,0)",     # Fundo transparente para integrar ao tema do Streamlit
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=500,                       # Altura ideal para análise em telas desktop
+        
+        # CONFIGURAÇÃO DA LEGENDA ABAIXO DO EIXO X
+        legend=dict(
+            orientation="h",              # Orientação Horizontal
+            yanchor="bottom",
+            y=-0.25,                      # Força o posicionamento abaixo do eixo X
+            xanchor="center",
+            x=0.5,                        # Centraliza horizontalmente na tela
+            font=dict(size=12)
+        ),
+        
+        # PROPRIEDADES DO EIXO X (Focado em Dias)
+        xaxis=dict(
+            title="Período de Análise (Dias)",
+            showgrid=True,
+            gridcolor="rgba(200, 200, 200, 0.2)",
+            tickformat="%d/%m/%Y",        # Formatação Brasileira de Data por dia
+            type="date"
+        ),
+        
+        # PROPRIEDADES DO EIXO Y (Turbidez NTU / Faixas)
+        yaxis=dict(
+            title="Faixas de Turbidez / Parâmetros de Processo",
+            showgrid=True,
+            gridcolor="rgba(200, 200, 200, 0.2)",
+            zeroline=True,
+            zerolinecolor="rgba(200, 200, 200, 0.4)"
+        )
+    )
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 5: PLOTAGEM FINAL NA INTERFACE DO OPERADOR
+    # ------------------------------------------------------------------------------
+    st.plotly_chart(fig_turbidez, use_container_width=True)
+
+else:
+    # Bloqueio de segurança caso o operador limpe todos os filtros na barra lateral
+    st.warning("⚠️ Dados insuficientes para plotagem do Gráfico 4.1. Verifique os critérios selecionados no menu lateral (Bloco 3).")
