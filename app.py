@@ -397,7 +397,7 @@ if df_graficos is not None and not df_graficos.empty:
         )
 
         st.plotly_chart(fig_temporal, use_container_width=True)
-
+        st.dataframe(df_graficos)
     # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
     # ------------------------------------------------------------------------------
