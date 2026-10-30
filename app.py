@@ -434,7 +434,7 @@ if df_graficos is not None and not df_graficos.empty:
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        # Configurações estritas de Layout do Gráfico Horizontal (SINTAXE CORRIGIDA)
+        # Configuração simplificada e automatizada para eliminar o ValueError
         fig_barras_captai.update_layout(
             margin=dict(l=60, r=40, t=10, b=40),  
             plot_bgcolor="rgba(0,0,0,0)",         
@@ -442,9 +442,6 @@ if df_graficos is not None and not df_graficos.empty:
             height=300,                           
             showlegend=False,                     
             xaxis=dict(
-                range=[0, 100],                   # VALORES CORRIGIDOS: Escala real travada de 0 a 100%
-                tickvals=[0, 25, 50, 75, 100],    # VALORES CORRIGIDOS: Gridlines nos quadrantes
-                ticktext=['0%', '25%', '50%', '75%', '100%'],
                 showgrid=True,
                 gridcolor="rgba(200, 200, 200, 0.15)", 
                 zeroline=False
@@ -454,6 +451,7 @@ if df_graficos is not None and not df_graficos.empty:
                 tickfont=dict(size=14, bold=True, color='#1E293B')
             )
         )
+
 
         st.plotly_chart(fig_barras_captai, use_container_width=True)
 
