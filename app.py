@@ -321,6 +321,7 @@ if not df_operacional.empty:
 else:
     st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser carregado pois a base operacional está inacessível.")
 # ==============================================================================
+# ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
 # GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO (DIA/MÊS)
@@ -340,10 +341,27 @@ st.markdown("## 01 Leitura do processo")
 st.caption("Evolução da turbidez e participação das captações no período selecionado.")
 
 # Captura de forma segura a matriz filtrada do Bloco 3 via Session State
-df_graficos = st.session_state.get('df_filtrado', None)
+df_bruto_filt = st.session_state.get('df_filtrado', None)
 
 # Validação estrita do módulo de renderização
-if df_graficos is not None and not df_graficos.empty:
+if df_bruto_filt is not None and not df_bruto_filt.empty:
+
+    # ------------------------------------------------------------------------------
+    # SEÇÃO 1.5: HIGIENIZAÇÃO ABSOLUTA DE DADOS (RESOLUÇÃO DO VALUEERROR)
+    # ------------------------------------------------------------------------------
+    # Criamos uma cópia limpa para garantir que nenhuma sujeira quebre o Plotly
+    df_graficos = df_bruto_filt.copy()
+
+    # Força todas as colunas operacionais a virarem números, limpando textos ou NaNs
+    colunas_para_limpar = [
+        'ÁGUA BRUTA TURB (uT)', 'ÁGUA FILTRADA TURB (uT)',
+        'LADO PAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)', 
+        'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)',
+        '%TOR', '%SM', '%BNN'
+    ]
+    for col in colunas_para_limpar:
+        if col in df_graficos.columns:
+            df_graficos[col] = pd.to_numeric(df_graficos[col], errors='coerce').fillna(0.0)
 
     # ------------------------------------------------------------------------------
     # SEÇÃO 2: CARD 1 - SÉRIE TEMPORAL (TURBIDEZ EM uT VS DIA/MÊS)
@@ -354,13 +372,11 @@ if df_graficos is not None and not df_graficos.empty:
 
         fig_temporal = go.Figure()
 
-        # Configurações estritas: Linhas retas, limpas (sem pontos) e finas (width=1.0)
         config_linha_bruta   = dict(color='#FF4B4B', width=1.0) # Vermelho
         config_linha_tratada = dict(color='#0066CC', width=1.0) # Azul
         config_linha_par     = dict(color='#FF9933', width=1.0) # Laranja
         config_linha_impar   = dict(color='#2CA02C', width=1.0) # Verde
 
-        # Injeção das curvas no gráfico de linhas
         fig_temporal.add_trace(go.Scatter(
             x=df_graficos['DATA'], y=df_graficos['ÁGUA BRUTA TURB (uT)'], 
             name='Água bruta', mode='lines', line=config_linha_bruta, connectgaps=True
@@ -381,7 +397,6 @@ if df_graficos is not None and not df_graficos.empty:
             name='Clarificada Ímpar', mode='lines', line=config_linha_impar, connectgaps=True
         ))
 
-        # Ajustes de Layout e Legenda Inferior Interativa
         fig_temporal.update_layout(
             margin=dict(l=40, r=20, t=10, b=80),
             hovermode="x unified",
@@ -406,18 +421,17 @@ if df_graficos is not None and not df_graficos.empty:
         st.markdown("### COMPOSIÇÃO")
         st.markdown("#### Participação agregada por captação <span style='font-size:12px; color:gray; font-weight:normal;'>| % do volume observado</span>", unsafe_allow_html=True)
 
-        # Extração das médias aritméticas para o período selecionado
-        media_tor = df_graficos['%TOR'].mean() if '%TOR' in df_graficos.columns else 0
-        media_sm  = df_graficos['%SM'].mean() if '%SM' in df_graficos.columns else 0
-        media_bnn = df_graficos['%BNN'].mean() if '%BNN' in df_graficos.columns else 0
+        # Como os dados foram limpos na Seção 1.5, o cálculo da média agora é 100% seguro
+        media_tor = float(df_graficos['%TOR'].mean())
+        media_sm  = float(df_graficos['%SM'].mean())
+        media_bnn = float(df_graficos['%BNN'].mean())
 
-        # Ajuste automático de escala de percentual (Decimal para Inteiro se necessário)
+        # Ajuste automático de escala de percentual (Decimal para Inteiro)
         if media_tor <= 1.0 and media_sm <= 1.0 and media_bnn <= 1.0:
             media_tor *= 100.0
             media_sm  *= 100.0
             media_bnn *= 100.0
 
-        # DataFrame estruturado para as barras horizontais
         df_valores_captai = pd.DataFrame({
             'Captação': ['BNN', 'SM', 'TOR'],
             'Percentual': [media_bnn, media_sm, media_tor]
@@ -434,8 +448,6 @@ if df_graficos is not None and not df_graficos.empty:
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        # SOLUÇÃO DEFINITIVA: Layout limpo e automatizado baseado na API do Plotly
-        # Sem colchetes manuais vazios para evitar qualquer erro de interpretação de código
         fig_barras_captai.update_layout(
             margin=dict(l=60, r=40, t=10, b=40),  
             plot_bgcolor="rgba(0,0,0,0)",         
@@ -443,8 +455,8 @@ if df_graficos is not None and not df_graficos.empty:
             height=300,                           
             showlegend=False,                     
             xaxis=dict(
-                dtick=25,                              # Força as divisões automáticas em 0, 25, 50, 75, 100
-                ticksuffix="%",                        # Insere o caractere % dinamicamente em cada número
+                dtick=25,                              
+                ticksuffix="%",                        
                 showgrid=True,
                 gridcolor="rgba(200, 200, 200, 0.15)", 
                 zeroline=False
@@ -458,4 +470,4 @@ if df_graficos is not None and not df_graficos.empty:
         st.plotly_chart(fig_barras_captai, use_container_width=True)
 
 else:
-    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização das séries temporais.")
+    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização.")
