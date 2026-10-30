@@ -152,22 +152,34 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # ==============================================================================
 # BLOCO 3: BARRA LATERAL (SIDEBAR) DE FILTROS OPERACIONAIS
 # ==============================================================================
+# ==============================================================================
+# BLOCO 3 REVISADO: BARRA LATERAL (SIDEBAR) COM DETECÇÃO AUTOMÁTICA DE DATAS
+# ==============================================================================
 
 # [INTERFACE] Passo 3.1: Configuração do cabeçalho da barra lateral
-# Adiciona um título descritivo e limpo no topo do menu esquerdo do aplicativo.
 st.sidebar.markdown("## 🎛️ Filtros de Seleção (ETA Brasília)")
 st.sidebar.write("Configure os parâmetros abaixo para atualizar as médias e gráficos em tempo real.")
 st.sidebar.write("---")
 
-# [CONTROLE DE DATAS] Passo 3.2: Filtro de Intervalo Temporal
-# Este bloco cria o calendário de seleção de datas. Para evitar erros se o banco de dados
-# estiver carregando ou vazio, fazemos uma verificação de segurança usando a tabela 'df_dados'.
-if 'Data' in df_dados.columns:
-    # Captura a menor e a maior data real contidas no arquivo Excel carregado
-    data_minima = df_dados['Data'].min()
-    data_maxima = df_dados['Data'].max()
+# [DETETIVE DE DATAS] Passo 3.2: Identificação da coluna de tempo no Excel
+# Procura na sua planilha qualquer coluna que contenha a palavra 'data' ou 'periodo'
+coluna_data_real = None
+if df_dados is not None and not df_dados.empty:
+    for col in df_dados.columns:
+        if 'data' in col.lower() or 'periodo' in col.lower() or 'data/hora' in col.lower():
+            coluna_data_real = col
+            break
+
+# [CONTROLE DE DATAS] Passo 3.3: Filtro de Intervalo Temporal Reativo
+if coluna_data_real:
+    # Garante que a coluna está no formato de data correto para o calendário do Streamlit
+    df_dados[coluna_data_real] = pd.to_datetime(df_dados[coluna_data_real])
     
-    # Renderiza o componente de calendário na barra lateral para o usuário escolher o período
+    # Captura a menor e a maior data real contidas no arquivo Excel carregado
+    data_minima = df_dados[coluna_data_real].min().date()
+    data_maxima = df_dados[coluna_data_real].max().date()
+    
+    # Renderiza o componente de calendário na barra lateral
     periodo_selecionado = st.sidebar.date_input(
         "Selecione o período de análise:",
         value=(data_minima, data_maxima),
@@ -175,28 +187,21 @@ if 'Data' in df_dados.columns:
         max_value=data_maxima,
         key="filtro_calendario_operacional"
     )
-else:
-    # Fallback/Proteção: Se a coluna de data não for encontrada ou o arquivo estiver lendo,
-    # exibe uma mensagem informativa e evita que a tela do sistema trave.
-    st.sidebar.info("📅 Filtro de data indisponível: Coluna 'Data' não localizada no Excel.")
-
-# [CONTROLE OPERACIONAL] Passo 3.3: Filtros de Seleção Adicionais (Ex: Turno ou Status)
-# Adicionamos aqui espaços para outros filtros comuns que seu app original possuía,
-# como seleção de Turnos operacionais, Operadores ou faixas de vazão específicas.
-if 'Turno' in df_dados.columns:
-    # Captura todas as opções únicas de turnos da lista (ex: Turno A, Turno B, Integral)
-    opcoes_turnos = ['Todos'] + list(df_dados['Turno'].unique())
-    turno_escolhido = st.sidebar.selectbox("Turno Operacional:", opcoes_turnos, key="filtro_turno")
     
-    # Aplica o filtro de turno na tabela ativa se o usuário escolher um específico
-    if turno_escolhido != 'Todos':
-        df_dados = df_dados[df_dados['Turno'] == turno_escolhido]
+    # [APLICAÇÃO DO FILTRO] Se o usuário selecionar o início e fim, filtra a tabela viva
+    if isinstance(periodo_selecionado, tuple) and len(periodo_selecionado) == 2:
+        data_inicio, data_fim = periodo_selecionado
+        df_dados = df_dados[
+            (df_dados[coluna_data_real].dt.date >= data_inicio) & 
+            (df_dados[coluna_data_real].dt.date <= data_fim)
+        ]
+else:
+    # Fallback/Proteção técnica caso o arquivo ainda esteja carregando
+    st.sidebar.info("📅 Filtro de data indisponível: Coluna contendo 'Data' não localizada no Excel.")
 
 st.sidebar.write("---")
 st.sidebar.success("💡 Filtros aplicados com sucesso!")
 
 # ------------------------------------------------------------------------------
-# NOTA DE MANUTENÇÃO:
-# Qualquer novo filtro de tela que você queira adicionar no futuro (ex: filtrar por operador, 
-# filtrar por elevatória específica) deve ser programado dentro deste Bloco 3.
+# FIM DO BLOCO 3
 # ------------------------------------------------------------------------------
