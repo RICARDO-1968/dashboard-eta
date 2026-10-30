@@ -448,26 +448,33 @@ if df_bruto_filt is not None and not df_bruto_filt.empty:
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        fig_barras_captai.update_layout(
-            margin=dict(l=60, r=40, t=10, b=40),  
-            plot_bgcolor="rgba(0,0,0,0)",         
-            paper_bgcolor="rgba(0,0,0,0)",
-            height=300,                           
-            showlegend=False,                     
-            xaxis=dict(
-                dtick=25,                              
-                ticksuffix="%",                        
-                showgrid=True,
-                gridcolor="rgba(200, 200, 200, 0.15)", 
-                zeroline=False
-            ),
-            yaxis=dict(
-                showgrid=False,
-                tickfont=dict(size=14, bold=True, color='#1E293B')
+                # --- ALTERAÇÃO CIRÚRGICA DE SEGURANÇA OPERACIONAL ---
+        # Só renderiza o gráfico se a soma das participações for maior que zero, evitando o ValueError
+        if df_valores_captai['Percentual'].sum() > 0:
+            
+            fig_barras_captai.update_layout(
+                margin=dict(l=60, r=40, t=10, b=40),  
+                plot_bgcolor="rgba(0,0,0,0)",         
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=300,                           
+                showlegend=False,                     
+                xaxis=dict(
+                    range=[0, 100],                   
+                    tickvals=[0, 25, 50, 75, 100],    
+                    ticktext=['0%', '25%', '50%', '75%', '100%'],
+                    showgrid=True,
+                    gridcolor="rgba(200, 200, 200, 0.15)", 
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    showgrid=False,
+                    tickfont=dict(size=14, bold=True, color='#1E293B')
+                )
             )
-        )
-
-        st.plotly_chart(fig_barras_captai, use_container_width=True)
-
-else:
-    st.warning("⚠️ Módulo Gráfico: Aguardando a seleção de dados válidos no Bloco 3 para renderização.")
+            
+            # Renderiza o gráfico com segurança
+            st.plotly_chart(fig_barras_captai, use_container_width=True)
+            
+        else:
+            # Mensagem sutil de contingência caso os filtros zerem a captação
+            st.info("ℹ️ Nenhuma captação ativa registrada para o período ou filtros selecionados.")
