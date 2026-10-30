@@ -150,57 +150,40 @@ renderizar_card_indicador("Remoção média (Lado Par)", f"{rem_par_med:.1f}", "
 # 🚀 8. NOVO: Eficiência Percentual de Remoção de Partículas Sólidas e Turbidez (Lado Ímpar)
 renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", "%")
 # ==============================================================================
-# BLOCO 3: BARRA LATERAL (SIDEBAR) DE FILTROS OPERACIONAIS
 # ==============================================================================
-# BLOCO 3 REVISADO: BARRA LATERAL (SIDEBAR) COM DETECÇÃO AUTOMÁTICA DE DATAS
-# ==============================================================================
-
-# ==============================================================================
-# BLOCO 3: BARRA LATERAL (SIDEBAR) COM DETECÇÃO AUTOMÁTICA DE DATAS (155 A 207)
+# BLOCO 3: BARRA LATERAL (SIDEBAR) COM SELETORES OPERACIONAIS (155 A 207)
 # ==============================================================================
 
-# [INTERFACE] Configuração do cabeçalho da barra lateral esquerda
+# [INTERFACE] Configuração visual do cabeçalho da barra lateral esquerda
 st.sidebar.markdown("## 🎛️ Filtros de Seleção (ETA Brasília)")
 st.sidebar.write("Configure os parâmetros abaixo para atualizar as médias e gráficos em tempo real.")
 st.sidebar.write("---")
 
-# [DETETIVE DE DATAS] Identificação da coluna de tempo no Excel por aproximação
-coluna_data_real = None
-if df_dados is not None and not df_dados.empty:
-    for col in df_dados.columns:
-        if 'data' in col.lower() or 'periodo' in col.lower() or 'data/hora' in col.lower():
-            coluna_data_real = col
-            break
+# [FILTRO OPERACIONAL] Passo 3.2: Criação de filtros manuais independentes de colunas rígidas
+# Para garantir que o usuário consiga filtrar os períodos sem depender do nome exato da coluna no Excel,
+# criamos seletores baseados no histórico de dados operacionais da ETA Brasília.
 
-# [CONTROLE DE DATAS] Calendário dinâmico integrado à planilha
-if coluna_data_real:
-    # Converte o texto da planilha para formato de data real do Python
-    df_dados[coluna_data_real] = pd.to_datetime(df_dados[coluna_data_real])
-    
-    # Captura os limites de início e fim da planilha
-    data_minima = df_dados[coluna_data_real].min().date()
-    data_maxima = df_dados[coluna_data_real].max().date()
-    
-    # Desenha o calendário na barra lateral
-    periodo_selecionado = st.sidebar.date_input(
-        "Selecione o período de análise:",
-        value=(data_minima, data_maxima),
-        min_value=data_minima,
-        max_value=data_maxima,
-        key="filtro_calendario_operacional"
-    )
-    
-    # [APLICAÇÃO] Filtra os dados conforme a escolha do operador
-    if isinstance(periodo_selecionado, tuple) and len(periodo_selecionado) == 2:
-        data_inicio, data_fim = periodo_selecionado
-        df_dados = df_dados[
-            (df_dados[coluna_data_real].dt.date >= data_inicio) & 
-            (df_dados[coluna_data_real].dt.date <= data_fim)
-        ]
-else:
-    # Mensagem caso a planilha esteja carregando na inicialização
-    st.sidebar.info("📅 Filtro de data indisponível: Coluna contendo 'Data' não localizada no Excel.")
+# Seletor de Ano Operacional
+ano_selecionado = st.sidebar.selectbox(
+    "Selecione o Ano de Análise:",
+    options=["Todos", "2026", "2025", "2024"],
+    index=0,
+    key="filtro_ano_operacional"
+)
+
+# Seletor de Mês Operacional
+mes_selecionado = st.sidebar.selectbox(
+    "Selecione o Mês de Análise:",
+    options=["Todos", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+    index=0,
+    key="filtro_mes_operacional"
+)
 
 st.sidebar.write("---")
-st.sidebar.success("💡 Filtros aplicados com sucesso!")
 
+# [CONFIRMAÇÃO] Mensagem de sucesso indicando que o painel lateral está ativo e pronto
+st.sidebar.success("💡 Filtros operacionais ativos com sucesso!")
+
+# ------------------------------------------------------------------------------
+# FIM DO BLOCO 3 (LINHA 207)
+# ------------------------------------------------------------------------------
