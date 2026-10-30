@@ -182,7 +182,7 @@ def carregar_dados_equilibrio_quimico():
         'LADO ÍMPAR FLOTAÇÃO TURB CLARIFICADA CLP (uT)'
         '%TOR',
         '%SM',
-        '%BNN', 
+        '%BNN'
     ]
     
     try:
