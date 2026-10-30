@@ -180,7 +180,7 @@ def carregar_dados_equilibrio_quimico():
     
     try:
         # Sintaxe contínua para evitar quebras no interpretador
-        df = pd.read_excel("EQUILIBRIO_QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
+        df = pd.read_excel("EQUILIBRIO QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
         
         # Converte a coluna de tempo para o formato datetime do Pandas
         df['DATA'] = pd.to_datetime(df['DATA'])
