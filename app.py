@@ -155,13 +155,16 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # BLOCO 3 REVISADO: BARRA LATERAL (SIDEBAR) COM DETECÇÃO AUTOMÁTICA DE DATAS
 # ==============================================================================
 
-# [INTERFACE] Passo 3.1: Configuração do cabeçalho da barra lateral
+# ==============================================================================
+# BLOCO 3: BARRA LATERAL (SIDEBAR) COM DETECÇÃO AUTOMÁTICA DE DATAS (155 A 207)
+# ==============================================================================
+
+# [INTERFACE] Configuração do cabeçalho da barra lateral esquerda
 st.sidebar.markdown("## 🎛️ Filtros de Seleção (ETA Brasília)")
 st.sidebar.write("Configure os parâmetros abaixo para atualizar as médias e gráficos em tempo real.")
 st.sidebar.write("---")
 
-# [DETETIVE DE DATAS] Passo 3.2: Identificação da coluna de tempo no Excel
-# Procura na sua planilha qualquer coluna que contenha a palavra 'data' ou 'periodo'
+# [DETETIVE DE DATAS] Identificação da coluna de tempo no Excel por aproximação
 coluna_data_real = None
 if df_dados is not None and not df_dados.empty:
     for col in df_dados.columns:
@@ -169,16 +172,16 @@ if df_dados is not None and not df_dados.empty:
             coluna_data_real = col
             break
 
-# [CONTROLE DE DATAS] Passo 3.3: Filtro de Intervalo Temporal Reativo
+# [CONTROLE DE DATAS] Calendário dinâmico integrado à planilha
 if coluna_data_real:
-    # Garante que a coluna está no formato de data correto para o calendário do Streamlit
+    # Converte o texto da planilha para formato de data real do Python
     df_dados[coluna_data_real] = pd.to_datetime(df_dados[coluna_data_real])
     
-    # Captura a menor e a maior data real contidas no arquivo Excel carregado
+    # Captura os limites de início e fim da planilha
     data_minima = df_dados[coluna_data_real].min().date()
     data_maxima = df_dados[coluna_data_real].max().date()
     
-    # Renderiza o componente de calendário na barra lateral
+    # Desenha o calendário na barra lateral
     periodo_selecionado = st.sidebar.date_input(
         "Selecione o período de análise:",
         value=(data_minima, data_maxima),
@@ -187,7 +190,7 @@ if coluna_data_real:
         key="filtro_calendario_operacional"
     )
     
-    # [APLICAÇÃO DO FILTRO] Se o usuário selecionar o início e fim, filtra a tabela viva
+    # [APLICAÇÃO] Filtra os dados conforme a escolha do operador
     if isinstance(periodo_selecionado, tuple) and len(periodo_selecionado) == 2:
         data_inicio, data_fim = periodo_selecionado
         df_dados = df_dados[
@@ -195,13 +198,9 @@ if coluna_data_real:
             (df_dados[coluna_data_real].dt.date <= data_fim)
         ]
 else:
-    # Fallback/Proteção técnica caso o arquivo ainda esteja carregando
+    # Mensagem caso a planilha esteja carregando na inicialização
     st.sidebar.info("📅 Filtro de data indisponível: Coluna contendo 'Data' não localizada no Excel.")
 
 st.sidebar.write("---")
 st.sidebar.success("💡 Filtros aplicados com sucesso!")
 
-# ------------------------------------------------------------------------------
-# FIM DO BLOCO 3
-# ------------------------------------------------------------------------------
-# ==============================================================================
