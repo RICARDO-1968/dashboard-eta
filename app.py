@@ -179,7 +179,7 @@ st.set_page_config(
 # @st.cache_data é crucial aqui para evitar releituras lentas do arquivo Excel
 # a cada clique ou mudança de filtro do operador.
 @st.cache_data
-def carregar_dados_equilibrio_quimico():
+pd.read_excel("EQUILIBRIO QUIMICO.xlsx",sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
     """
     Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
     às colunas utilizadas no escopo de filtros para aliviar a memória.
