@@ -401,7 +401,6 @@ if df_graficos is not None and not df_graficos.empty:
 
         st.plotly_chart(fig_temporal, use_container_width=True)
         st.dataframe(df_graficos)
-    # ------------------------------------------------------------------------------
         # ------------------------------------------------------------------------------
     # SEÇÃO 3: CARD 2 - COMPOSIÇÃO (PARTICIPAÇÃO AGREGADA POR CAPTAÇÃO)
     # GRÁFICO 4.2: BARRAS HORIZONTAIS PERCENTUAIS DE CAPTAÇÃO OPERACIONAL
@@ -423,7 +422,7 @@ if df_graficos is not None and not df_graficos.empty:
             media_sm  *= 100
             media_bnn *= 100
 
-        # Monta o DataFrame estruturado para plotagem vertical reversa (menor para o maior na construção)
+        # Monta o DataFrame estruturado para plotagem vertical (BNN na base, TOR no topo)
         df_valores_captai = pd.DataFrame({
             'Captação': ['BNN', 'SM', 'TOR'],
             'Percentual': [media_bnn, media_sm, media_tor]
@@ -452,7 +451,7 @@ if df_graficos is not None and not df_graficos.empty:
             height=300,                           # Altura perfeitamente alinhada à imagem
             showlegend=False,                     # Dispensa legenda lateral
 
-            # Configuração Estrita do Eixo X (Escala de 0% a 100%)
+            # Configuração Estrita do Eixo X (Escala de 0% a 100% preenchida)
             xaxis=dict(
                 range=[0, 100],                   # Trava os limites do eixo para manter a referência de escala real
                 tickvals=[0, 25, 50, 75, 100],    # Gridlines exatamente nos quadrantes da imagem
