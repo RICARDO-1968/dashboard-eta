@@ -153,7 +153,7 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 3: CONTROLES DE SELEÇÃO OPERACIONAL E FILTROS DINÂMICOS
-# OBJETIVO: Mapear faixas de turbidez e gerenciar os limites temporais da planta
+# OBJETIVO: Mapear faixas de turbidez, elevatórias e limites temporais da planta
 # ==============================================================================
 
 import streamlit as st
@@ -168,8 +168,10 @@ def carregar_dados_equilibrio_quimico():
     Carrega especificamente a aba de Equilíbrio Químico, limitando a leitura
     às colunas utilizadas no escopo de filtros para aliviar a memória.
     """
+    # Incluída a coluna 'TIPO_AGUA_BRUTA' solicitada para o controle das elevatórias
     colunas_alvo = [
         'DATA', 
+        'TIPO_AGUA_BRUTA',
         'FAIXA_TURB_BRUTA', 
         'FAIXA_TURB_CLAR_PAR', 
         'FAIXA_TURB_CLAR_ÍMPAR', 
@@ -177,9 +179,9 @@ def carregar_dados_equilibrio_quimico():
     ]
     
     try:
-        # Sintaxe limpa em uma única linha para evitar quebras incorretas no interpretador
-        df = pd.read_excel("EQUILIBRIO QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
-    
+        # Sintaxe contínua para evitar quebras no interpretador
+        df = pd.read_excel("EQUILIBRIO_QUIMICO.xlsx", sheet_name="EQUILIBRIO QUIMICO COM CARGA", usecols=colunas_alvo)
+        
         # Converte a coluna de tempo para o formato datetime do Pandas
         df['DATA'] = pd.to_datetime(df['DATA'])
         return df
@@ -233,7 +235,15 @@ if not df_operacional.empty:
         )
 
     st.sidebar.markdown("---")
-    st.sidebar.write("**Parâmetros de Turbidez:**")
+    st.sidebar.write("**Origem e Parâmetros de Processo:**")
+
+    # --- NOVO CONTROLE: SELEÇÃO DE ELEVATÓRIAS (TIPO_AGUA_BRUTA) ---
+    lista_tipo_agua = sorted(df_operacional['TIPO_AGUA_BRUTA'].dropna().unique())
+    filtro_tipo_agua = st.sidebar.selectbox(
+        "Elevatória / Tipo de Água Bruta",
+        options=["Todos"] + list(lista_tipo_agua),
+        help="Selecione o tipo de água bruta ou elevatória de origem."
+    )
 
     # --- SUBSEÇÃO: MAPEAMENTO DAS FAIXAS DE TURBIDEZ ---
     
@@ -268,11 +278,17 @@ if not df_operacional.empty:
     # ------------------------------------------------------------------------------
     # SEÇÃO 4: ENGINE DE FILTRAGEM DOS DADOS (PROCESSAMENTO EM CASCATA)
     # ------------------------------------------------------------------------------
+    # Estágio Cronológico Inicial
     df_filtrado = df_operacional[
         (df_operacional['DATA'].dt.date >= data_selecionada_ini) & 
         (df_operacional['DATA'].dt.date <= data_selecionada_fim)
     ]
 
+    # Filtragem Dinâmica da Nova Coluna das Elevatórias
+    if filtro_tipo_agua != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['TIPO_AGUA_BRUTA'] == filtro_tipo_agua]
+
+    # Filtragem das demais Faixas de Turbidez
     if filtro_turb_bruta != "Todos":
         df_filtrado = df_filtrado[df_filtrado['FAIXA_TURB_BRUTA'] == filtro_turb_bruta]
         
