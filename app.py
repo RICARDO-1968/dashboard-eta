@@ -321,6 +321,7 @@ if not df_operacional.empty:
 else:
     st.error("⚠️ Erro de Fluxo: O Bloco 3 não pôde ser carregado pois a base operacional está inacessível.")
 # ==============================================================================
+# ==============================================================================
 # PROJETO: DASHBOARD OPERACIONAL - ETA BRASÍLIA
 # BLOCO 4: MÓDULO DE ANÁLISE GRÁFICA AVANÇADA E COMPORTAMENTO DE PROCESSO
 # GRÁFICO 4.1: SÉRIE TEMPORAL - TURBIDEZ OPERACIONAL (uT) VS PERÍODO (DIA/MÊS)
@@ -434,7 +435,8 @@ if df_graficos is not None and not df_graficos.empty:
             hovertemplate="<b>%{y}</b><br>Participação Média: %{x:.2f}%<extra></extra>"
         ))
 
-        # Configuração simplificada e automatizada para eliminar o ValueError
+        # SOLUÇÃO DEFINITIVA: Layout limpo e automatizado baseado na API do Plotly
+        # Sem colchetes manuais vazios para evitar qualquer erro de interpretação de código
         fig_barras_captai.update_layout(
             margin=dict(l=60, r=40, t=10, b=40),  
             plot_bgcolor="rgba(0,0,0,0)",         
@@ -442,6 +444,8 @@ if df_graficos is not None and not df_graficos.empty:
             height=300,                           
             showlegend=False,                     
             xaxis=dict(
+                dtick=25,                              # Força as divisões automáticas em 0, 25, 50, 75, 100
+                ticksuffix="%",                        # Insere o caractere % dinamicamente em cada número
                 showgrid=True,
                 gridcolor="rgba(200, 200, 200, 0.15)", 
                 zeroline=False
@@ -451,7 +455,6 @@ if df_graficos is not None and not df_graficos.empty:
                 tickfont=dict(size=14, bold=True, color='#1E293B')
             )
         )
-
 
         st.plotly_chart(fig_barras_captai, use_container_width=True)
 
