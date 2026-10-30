@@ -153,37 +153,54 @@ renderizar_card_indicador("Remoção média (Lado Ímpar)", f"{rem_impar:.1f}", 
 # ==============================================================================
 # BLOCO 3: BARRA LATERAL (SIDEBAR) COM SELETORES OPERACIONAIS (155 A 207)
 # ==============================================================================
+# ==============================================================================
+# BLOCO 3: BARRA LATERAL (SIDEBAR) - CONTROLE FILTROS POR FAIXAS OPERACIONAIS (155 A 207)
+# ==============================================================================
 
-# [INTERFACE] Configuração visual do cabeçalho da barra lateral esquerda
-st.sidebar.markdown("## 🎛️ Filtros de Seleção (ETA Brasília)")
-st.sidebar.write("Configure os parâmetros abaixo para atualizar as médias e gráficos em tempo real.")
+# [INTERFACE] Configuração visual do cabeçalho técnico da barra lateral esquerda
+st.sidebar.markdown("## 🎛️ Filtros de Seleção Analítica")
+st.sidebar.write("Refine as faixas operacionais para recalibrar o equilíbrio químico.")
 st.sidebar.write("---")
 
-# [FILTRO OPERACIONAL] Passo 3.2: Criação de filtros manuais independentes de colunas rígidas
-# Para garantir que o usuário consiga filtrar os períodos sem depender do nome exato da coluna no Excel,
-# criamos seletores baseados no histórico de dados operacionais da ETA Brasília.
+# [CONTROLE TEMPORAL] Passo 3.1: Resgate do Calendário com Data Inicial e Final
+# Mapeamento dinâmico da coluna cronológica para garantir a reatividade do histórico
+col_data = next((c for c in df_dados.columns if 'data' in c.lower() or 'periodo' in c.lower()), None)
 
-# Seletor de Ano Operacional
-ano_selecionado = st.sidebar.selectbox(
-    "Selecione o Ano de Análise:",
-    options=["Todos", "2026", "2025", "2024"],
-    index=0,
-    key="filtro_ano_operacional"
-)
+if col_data and not df_dados.empty:
+    df_dados[col_data] = pd.to_datetime(df_dados[col_data])
+    dt_min, dt_max = df_dados[col_data].min().date(), df_dados[col_data].max().date()
+    # Calendário duplo nativo (Data Inicial e Data Final)
+    periodo = st.sidebar.date_input("Período de Análise:", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="filtro_data_dupla")
+    if isinstance(periodo, tuple) and len(periodo) == 2:
+        df_dados = df_dados[(df_dados[col_data].dt.date >= periodo[0]) & (df_dados[col_data].dt.date <= periodo[1])]
+else:
+    # Datas padrão do projeto caso a tabela esteja indexada de outra forma na partida
+    st.sidebar.date_input("Período de Análise:", value=(pd.to_datetime("2024-01-01").date(), pd.to_datetime("2026-12-31").date()), key="filtro_data_dupla_fallback")
 
-# Seletor de Mês Operacional
-mes_selecionado = st.sidebar.selectbox(
-    "Selecione o Mês de Análise:",
-    options=["Todos", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
-    index=0,
-    key="filtro_mes_operacional"
-)
+# [CONTROLE POR FAIXAS] Passo 3.2: Controles Deslizantes de Parâmetros Críticos de Processo
+st.sidebar.markdown("### 🎚️ Controle por Faixas Técnicas")
+
+# 1. Faixa de Turbidez Bruta (uT) - Essencial para o cálculo da dosagem do coagulante
+fx_turb_bruta = st.sidebar.slider("Faixa de Turbidez Bruta (uT):", 0.0, 5.0, (0.0, 3.0), step=0.1, key="fx_bruta")
+
+# 2. Faixa de Turbidez Clarificada Lado Par (uT) - Controle de eficiência do Flotador Par
+fx_clari_par = st.sidebar.slider("Faixa Clarificada (Lado Par) (uT):", 0.0, 1.0, (0.0, 0.5), step=0.01, key="fx_c_par")
+
+# 3. Faixa de Turbidez Clarificada Lado Ímpar (uT) - Controle de eficiência do Flotador Ímpar
+fx_clari_imp = st.sidebar.slider("Faixa Clarificada (Lado Ímpar) (uT):", 0.0, 1.0, (0.0, 0.5), step=0.01, key="fx_c_imp")
+
+# [FILTRAGEM ATIVA] Passo 3.3: Aplicação matemática das faixas na tabela de dados viva
+# As linhas abaixo filtram o DataFrame 'df_dados' dinamicamente usando as funções detetives criadas no Bloco 1
+def aplicar_filtro_faixa(df, termos, faixa):
+    for col in df.columns:
+        if any(t in col.lower() for t in termos):
+            return df[(df[col] >= faixa[0]) & (df[col] <= faixa[1])]
+    return df
+
+df_dados = aplicar_filtro_faixa(df_dados, ['turbidez bruta', 'bruta'], fx_turb_bruta)
+df_dados = aplicar_filtro_faixa(df_dados, ['clarificada lado par', 'clari_par'], fx_clari_par)
+df_dados = aplicar_filtro_faixa(df_dados, ['ímpar flotação turb clarificada', 'clarificada lado ímpar'], fx_clari_imp)
 
 st.sidebar.write("---")
-
-# [CONFIRMAÇÃO] Mensagem de sucesso indicando que o painel lateral está ativo e pronto
-st.sidebar.success("💡 Filtros operacionais ativos com sucesso!")
-
-# ------------------------------------------------------------------------------
-# FIM DO BLOCO 3 (LINHA 207)
-# ------------------------------------------------------------------------------
+st.sidebar.success("💡 Filtros analíticos integrados!")
+# ==============================================================================
